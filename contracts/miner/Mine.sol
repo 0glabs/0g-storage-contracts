@@ -326,16 +326,16 @@ contract PoraMine {
             uint256 targetMiningTime = TARGET_PERIOD * totalSubmission;
             (bool overflow, uint256 multiply) = SafeMath.tryMul(
                 targetQuality,
-                targetMiningTime
+                totalMiningTime
             );
             if (overflow) {
                 targetQuality = Math.mulDiv(
                     targetQuality,
-                    targetMiningTime,
-                    totalMiningTime
+                    totalMiningTime,
+                    targetMiningTime
                 );
             } else {
-                targetQuality = multiply / totalMiningTime;
+                targetQuality = multiply / targetMiningTime;
             }
             totalMiningTime = 0;
             totalSubmission = 0;
