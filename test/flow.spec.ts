@@ -25,7 +25,7 @@ describe.skip("ZeroGStorage Flow", function () {
     await mockCashier.mock.chargeFee.returns();
 
     let flowABI = await ethers.getContractFactory("Flow");
-    flow = await flowABI.deploy(mockCashier.address); /* token.address */
+    flow = await flowABI.deploy(mockCashier.address, 100, 0); /* token.address */
   });
 
   it("submit", async () => {

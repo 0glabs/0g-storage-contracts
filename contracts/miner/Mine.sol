@@ -27,10 +27,12 @@ contract PoraMine {
     // Settings bit
     uint256 private constant NO_DATA_SEAL = 0x1;
     uint256 private constant NO_DATA_PROOF = 0x2;
+    uint256 private constant NO_MARKET = 0x4;
 
     // Options for ZeroGStorage-mine development
     bool public immutable sealDataEnabled;
     bool public immutable dataProofEnabled;
+    bool public immutable marketEnabled;
 
     IFlow public immutable flow;
     ICashier public immutable cashier;
@@ -43,11 +45,15 @@ contract PoraMine {
     uint256 public totalSubmission;
 
     constructor(address flow_, address cashier_, uint256 settings) {
-        flow = IFlow(flow_);
-        cashier = ICashier(cashier_);
         targetQuality = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
         sealDataEnabled = (settings & NO_DATA_SEAL == 0);
         dataProofEnabled = (settings & NO_DATA_PROOF == 0);
+        marketEnabled = (settings & NO_MARKET == 0);
+
+        require(cashier_ != address(0) || !marketEnabled, "Cashier does not inited correctly");
+
+        flow = IFlow(flow_);
+        cashier = ICashier(cashier_);
     }
 
     struct PoraAnswer {
@@ -101,7 +107,9 @@ contract PoraMine {
         // _adjustQuality(context);
 
         // Step 5: reward fee
-        cashier.claimMineReward(answer.recallPosition / SECTORS_PER_PRICE, msg.sender);
+        if (marketEnabled) {
+            cashier.claimMineReward(answer.recallPosition / SECTORS_PER_PRICE, msg.sender);
+        }
     }
 
     function basicCheck(PoraAnswer calldata answer, MineContext memory context)

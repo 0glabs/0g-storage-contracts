@@ -23,17 +23,16 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
     uint256 private constant BASE_FEE = 1000;
     uint256 private constant ENTRY_FEE = 100;
     uint256 private constant ROOT_AVAILABLE_WINDOW = 20;
-    uint256 private constant CONTEXT_PERIOD = 100;
-    uint256 private constant DEPLOY_DELAY = 0;
 
     bytes32 private constant EMPTY_HASH =
         hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
 
     ICashier public immutable cashier; 
     IDigestHistory public immutable rootHistory;
+    uint256 public immutable blocksPerEpoch;
+    uint256 public immutable firstBlock;
 
     uint256 public submissionIndex;
-    uint256 public firstBlock;
     uint256 public epoch;
     uint256 public epochStartPosition;
 
@@ -46,10 +45,11 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
 
     error InvalidSubmission();
 
-    constructor(address cashier_) IncrementalMerkleTree(bytes32(0x0)) {
+    constructor(address cashier_, uint256 blocksPerEpoch_, uint256 deployDelay_) IncrementalMerkleTree(bytes32(0x0)) {
         epoch = 0;
+        blocksPerEpoch = blocksPerEpoch_;
         rootHistory = new DigestHistory(ROOT_AVAILABLE_WINDOW);
-        firstBlock = block.number + DEPLOY_DELAY;
+        firstBlock = block.number + deployDelay_;
         
         cashier = ICashier(cashier_);
 
@@ -124,7 +124,7 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
     function makeContext() public launched {
         uint256 nextEpochStart;
         unchecked {
-            nextEpochStart = firstBlock + (epoch + 1) * CONTEXT_PERIOD;
+            nextEpochStart = firstBlock + (epoch + 1) * blocksPerEpoch;
         }
 
         if (nextEpochStart >= block.number) {
