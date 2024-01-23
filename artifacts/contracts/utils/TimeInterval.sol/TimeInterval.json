@@ -1,0 +1,10 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "TimeInterval",
+  "sourceName": "contracts/utils/TimeInterval.sol",
+  "abi": [],
+  "bytecode": "0x6080604052348015600f57600080fd5b50603f80601d6000396000f3fe6080604052600080fdfea26469706673582212207e929f2b26d50ddb1ae6f3a82fe7ba98cd380c34b89cd6f7b7f08958f80f596a64736f6c63430008100033",
+  "deployedBytecode": "0x6080604052600080fdfea26469706673582212207e929f2b26d50ddb1ae6f3a82fe7ba98cd380c34b89cd6f7b7f08958f80f596a64736f6c63430008100033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
