@@ -5,8 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./IDigestHistory.sol";
 
 contract DigestHistory is IDigestHistory, Ownable {
-    bytes32[] digests;
-    uint256 nextIndex;
+    bytes32[] private digests;
+    uint256 private nextIndex;
 
     error UnavailableIndex(uint256);
 

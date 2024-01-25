@@ -19,8 +19,8 @@ contract PeakSwap {
     uint256 public constant TOKENS_PER_BLOCK = 1;
     uint256 public constant BOUNDARY_PRICE = 1;
 
-    address immutable public stake;
-    address immutable public cashier;
+    address public immutable stake;
+    address public immutable cashier;
 
     event Swap(
         address indexed sender,
@@ -32,7 +32,12 @@ contract PeakSwap {
     );
     event Sync(uint112 reserve0, uint112 reserve1);
 
-    constructor(address zgsToken, address uploadToken, address stake_, address cashier_) {
+    constructor(
+        address zgsToken,
+        address uploadToken,
+        address stake_,
+        address cashier_
+    ) {
         token0 = ISafeERC20(zgsToken);
         token1 = IUploadToken(uploadToken);
         stake = stake_;
@@ -221,7 +226,7 @@ contract PeakSwap {
         _swapByDirection(false, amount0Out, amount1In, stake);
 
         uint256 basicFee = amount1In * BOUNDARY_PRICE;
-        if(basicFee > amount0Out) {
+        if (basicFee > amount0Out) {
             basicFee = amount0Out;
         }
         token0.transferFrom(stake, cashier, basicFee);
