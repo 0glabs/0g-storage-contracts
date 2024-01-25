@@ -44,13 +44,20 @@ contract PoraMine {
     uint256 public totalMiningTime;
     uint256 public totalSubmission;
 
-    constructor(address flow_, address cashier_, uint256 settings) {
+    constructor(
+        address flow_,
+        address cashier_,
+        uint256 settings
+    ) {
         targetQuality = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
         sealDataEnabled = (settings & NO_DATA_SEAL == 0);
         dataProofEnabled = (settings & NO_DATA_PROOF == 0);
         marketEnabled = (settings & NO_MARKET == 0);
 
-        require(cashier_ != address(0) || !marketEnabled, "Cashier does not inited correctly");
+        require(
+            cashier_ != address(0) || !marketEnabled,
+            "Cashier does not inited correctly"
+        );
 
         flow = IFlow(flow_);
         cashier = ICashier(cashier_);
@@ -69,7 +76,7 @@ contract PoraMine {
         bytes32[] merkleProof;
     }
 
-    function submit(PoraAnswer calldata answer) public {
+    function submit(PoraAnswer memory answer) public {
         flow.makeContext();
         MineContext memory context = flow.getContext();
         require(
@@ -108,11 +115,14 @@ contract PoraMine {
 
         // Step 5: reward fee
         if (marketEnabled) {
-            cashier.claimMineReward(answer.recallPosition / SECTORS_PER_PRICE, msg.sender);
+            cashier.claimMineReward(
+                answer.recallPosition / SECTORS_PER_PRICE,
+                msg.sender
+            );
         }
     }
 
-    function basicCheck(PoraAnswer calldata answer, MineContext memory context)
+    function basicCheck(PoraAnswer memory answer, MineContext memory context)
         public
         view
     {
@@ -147,7 +157,7 @@ contract PoraMine {
         );
     }
 
-    function pora(PoraAnswer calldata answer) public view returns (bytes32) {
+    function pora(PoraAnswer memory answer) public view returns (bytes32) {
         bytes32 minerId = minerIds[msg.sender];
         require(answer.minerId != bytes32(0x0), "Miner ID does not exist");
         require(answer.minerId == minerId, "Miner ID is inconsistent");
@@ -177,11 +187,7 @@ contract PoraMine {
             scratchPad[i + 1] = blake2bHash[1] ^ answer.sealedData[i + 1];
         }
 
-        for (
-            uint256 i = scratchPadOffset + 1;
-            i < SEALS_PER_PAD;
-            i += 1
-        ) {
+        for (uint256 i = scratchPadOffset + 1; i < SEALS_PER_PAD; i += 1) {
             for (uint256 j = 0; j < BHASHES_PER_SEAL; j += 1) {
                 blake2bHash = Blake2b.blake2b(blake2bHash);
             }
@@ -250,7 +256,7 @@ contract PoraMine {
         return h[0];
     }
 
-    function unseal(PoraAnswer calldata answer)
+    function unseal(PoraAnswer memory answer)
         public
         pure
         returns (bytes32[UNITS_PER_SEAL] memory unsealedData)
@@ -272,7 +278,7 @@ contract PoraMine {
     }
 
     function recoverMerkleRoot(
-        PoraAnswer calldata answer,
+        PoraAnswer memory answer,
         bytes32[UNITS_PER_SEAL] memory unsealedData
     ) public pure returns (bytes32) {
         // console.log("Compute leaf");
