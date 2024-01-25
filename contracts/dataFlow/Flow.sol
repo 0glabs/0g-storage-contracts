@@ -144,7 +144,9 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         uint256 paddedLength = startIndex - previousLength;
         uint256 chargedLength = currentLength - startIndex;
 
-        cashier.chargeFee(chargedLength, paddedLength);
+        if (address(cashier) != address(0)) {
+            cashier.chargeFee(chargedLength, paddedLength);
+        }
     }
 
     function makeContext() public launched {
