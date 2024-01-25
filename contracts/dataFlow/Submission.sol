@@ -14,9 +14,9 @@ struct Submission {
 }
 
 library SubmissionLibrary {
-    uint256 constant MAX_DEPTH = 64;
-    uint256 constant ENTRY_SIZE = 256;
-    uint256 constant MAX_LENGTH = 4;
+    uint256 public constant MAX_DEPTH = 64;
+    uint256 public constant ENTRY_SIZE = 256;
+    uint256 public constant MAX_LENGTH = 4;
 
     function size(Submission memory submission)
         internal
@@ -30,11 +30,7 @@ library SubmissionLibrary {
         return _size;
     }
 
-    function valid(Submission memory submission)
-        internal
-        pure
-        returns (bool)
-    {
+    function valid(Submission memory submission) internal pure returns (bool) {
         if (submission.nodes.length == 0) {
             return false;
         }

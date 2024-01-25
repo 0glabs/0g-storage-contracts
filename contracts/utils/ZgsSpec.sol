@@ -6,7 +6,7 @@ uint256 constant MB = 1024 * KB;
 uint256 constant GB = 1024 * MB;
 uint256 constant TB = 1024 * GB;
 
-uint256 constant MAX_MINING_LENGTH = 8 * TB / BYTES_PER_SECTOR;
+uint256 constant MAX_MINING_LENGTH = (8 * TB) / BYTES_PER_SECTOR;
 
 uint256 constant BYTES_PER_SECTOR = 256;
 uint256 constant BYTES_PER_SEAL = 4 * KB;

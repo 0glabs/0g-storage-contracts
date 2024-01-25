@@ -27,7 +27,7 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
     bytes32 private constant EMPTY_HASH =
         hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
 
-    ICashier public immutable cashier; 
+    ICashier public immutable cashier;
     IDigestHistory public immutable rootHistory;
     uint256 public immutable blocksPerEpoch;
     uint256 public immutable firstBlock;
@@ -35,7 +35,6 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
     uint256 public submissionIndex;
     uint256 public epoch;
     uint256 public epochStartPosition;
-
 
     uint256 public totalRewards;
 
@@ -45,12 +44,16 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
 
     error InvalidSubmission();
 
-    constructor(address cashier_, uint256 blocksPerEpoch_, uint256 deployDelay_) IncrementalMerkleTree(bytes32(0x0)) {
+    constructor(
+        address cashier_,
+        uint256 blocksPerEpoch_,
+        uint256 deployDelay_
+    ) IncrementalMerkleTree(bytes32(0x0)) {
         epoch = 0;
         blocksPerEpoch = blocksPerEpoch_;
         rootHistory = new DigestHistory(ROOT_AVAILABLE_WINDOW);
         firstBlock = block.number + deployDelay_;
-        
+
         cashier = ICashier(cashier_);
 
         context = MineContext({
@@ -68,7 +71,37 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         _;
     }
 
-    function submit(Submission calldata submission)
+    function batchSubmit(Submission[] memory submissions)
+        public
+        whenNotPaused
+        launched
+        returns (
+            uint256[] memory indexes,
+            bytes32[] memory digests,
+            uint256[] memory startIndexes,
+            uint256[] memory lengths
+        )
+    {
+        uint256 len = submissions.length;
+        indexes = new uint256[](len);
+        digests = new bytes32[](len);
+        startIndexes = new uint256[](len);
+        lengths = new uint256[](len);
+        for (uint256 i = 0; i < len; ++i) {
+            (
+                uint256 index,
+                bytes32 digest,
+                uint256 startIndex,
+                uint256 length
+            ) = submit(submissions[i]);
+            indexes[i] = index;
+            digests[i] = digest;
+            startIndexes[i] = startIndex;
+            lengths[i] = length;
+        }
+    }
+
+    function submit(Submission memory submission)
         public
         whenNotPaused
         launched
@@ -89,19 +122,12 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         uint256 index = submissionIndex;
         submissionIndex += 1;
 
-        emit Submit(
-            msg.sender,
-            digest,
-            index,
-            startIndex,
-            length,
-            submission
-        );
+        emit Submit(msg.sender, digest, index, startIndex, length, submission);
 
         return (index, digest, startIndex, length);
     }
 
-    function _insertNodeList(Submission calldata submission)
+    function _insertNodeList(Submission memory submission)
         internal
         returns (uint256 startIndex)
     {
