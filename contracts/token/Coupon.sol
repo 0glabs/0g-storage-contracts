@@ -23,7 +23,9 @@ contract Coupon is ERC721, Ownable, OnlySender {
 
     uint256 private constant BASIC_PRICE = 1000;
 
-    constructor(address zgsToken_, address cashier_) ERC721("ZeroGStorageCoupon", "ZGS-CPN") {
+    constructor(address zgsToken_, address cashier_)
+        ERC721("ZeroGStorageCoupon", "ZGS-CPN")
+    {
         zgsToken = ISafeERC20(zgsToken_);
         cashier = cashier_;
         nextTokenId = 1;

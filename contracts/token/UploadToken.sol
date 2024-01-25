@@ -32,9 +32,7 @@ contract UploadToken is ERC20, IUploadToken, OnlySender {
 
     function _isSpecialAddress(address account) internal view returns (bool) {
         return
-            account == address(0) ||
-            account == battery ||
-            account == peakSwap;
+            account == address(0) || account == battery || account == peakSwap;
     }
 
     function realBalanceOf(address account)
@@ -100,7 +98,10 @@ contract UploadToken is ERC20, IUploadToken, OnlySender {
         _mint(peakSwap, amount);
     }
 
-    function consume(address consumer, uint256 amount) external onlySender(cashier){
+    function consume(address consumer, uint256 amount)
+        external
+        onlySender(cashier)
+    {
         _spendAllowance(consumer, cashier, amount);
         _burn(consumer, amount);
     }

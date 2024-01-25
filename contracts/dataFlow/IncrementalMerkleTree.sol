@@ -8,7 +8,7 @@ contract IncrementalMerkleTree {
     using SafeMath for uint256;
 
     uint256 public currentLength;
-    bytes32[] openNodes;
+    bytes32[] private openNodes;
     uint256 public unstagedHeight;
 
     constructor(bytes32 identifier) {

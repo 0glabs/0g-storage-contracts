@@ -141,43 +141,63 @@ library Exponential {
 
         uint256 powerX127 = _talorExpand64X127(-int256(fractionSmallX64));
         if ((fractionLargeX64 & BIT54) != 0) {
-            unchecked { powerX127 *= REV_ROOT_POW10X128; }
+            unchecked {
+                powerX127 *= REV_ROOT_POW10X128;
+            }
             powerX127 >>= 128;
         }
         if ((fractionLargeX64 & BIT55) != 0) {
-            unchecked { powerX127 *= REV_ROOT_POW9X128; }
+            unchecked {
+                powerX127 *= REV_ROOT_POW9X128;
+            }
             powerX127 >>= 128;
         }
         if ((fractionLargeX64 & BIT56) != 0) {
-            unchecked { powerX127 *= REV_ROOT_POW8X128; }
+            unchecked {
+                powerX127 *= REV_ROOT_POW8X128;
+            }
             powerX127 >>= 128;
         }
         if ((fractionLargeX64 & BIT57) != 0) {
-            unchecked { powerX127 *= REV_ROOT_POW7X128; }
+            unchecked {
+                powerX127 *= REV_ROOT_POW7X128;
+            }
             powerX127 >>= 128;
         }
         if ((fractionLargeX64 & BIT58) != 0) {
-            unchecked { powerX127 *= REV_ROOT_POW6X128; }
+            unchecked {
+                powerX127 *= REV_ROOT_POW6X128;
+            }
             powerX127 >>= 128;
         }
         if ((fractionLargeX64 & BIT59) != 0) {
-            unchecked { powerX127 *= REV_ROOT_POW5X128; }
+            unchecked {
+                powerX127 *= REV_ROOT_POW5X128;
+            }
             powerX127 >>= 128;
         }
         if ((fractionLargeX64 & BIT60) != 0) {
-            unchecked { powerX127 *= REV_ROOT_POW4X128; }
+            unchecked {
+                powerX127 *= REV_ROOT_POW4X128;
+            }
             powerX127 >>= 128;
         }
         if ((fractionLargeX64 & BIT61) != 0) {
-            unchecked { powerX127 *= REV_ROOT_POW3X128; }
+            unchecked {
+                powerX127 *= REV_ROOT_POW3X128;
+            }
             powerX127 >>= 128;
         }
         if ((fractionLargeX64 & BIT62) != 0) {
-            unchecked { powerX127 *= REV_ROOT_POW2X128; }
+            unchecked {
+                powerX127 *= REV_ROOT_POW2X128;
+            }
             powerX127 >>= 128;
         }
         if ((fractionLargeX64 & BIT63) != 0) {
-            unchecked { powerX127 *= REV_ROOT_POW1X128; }
+            unchecked {
+                powerX127 *= REV_ROOT_POW1X128;
+            }
             powerX127 >>= 128;
         }
 

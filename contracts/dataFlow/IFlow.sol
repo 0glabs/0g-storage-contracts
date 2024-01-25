@@ -41,7 +41,16 @@ interface IFlow {
         bytes32 context
     );
 
-    function submit(Submission calldata submission)
+    function batchSubmit(Submission[] memory submissions)
+        external
+        returns (
+            uint256[] memory indexes,
+            bytes32[] memory digests,
+            uint256[] memory startIndexes,
+            uint256[] memory lengths
+        );
+
+    function submit(Submission memory submission)
         external
         returns (
             uint256,

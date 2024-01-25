@@ -4,9 +4,9 @@ import "./UncheckedMath.sol";
 
 library Blake2b {
     using UncheckedMath for uint256;
-    bytes32 constant BLAKE2B_INIT_STATE0 =
+    bytes32 public constant BLAKE2B_INIT_STATE0 =
         hex"48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5";
-    bytes32 constant BLAKE2B_INIT_STATE1 =
+    bytes32 public constant BLAKE2B_INIT_STATE1 =
         hex"d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b";
 
     function blake2b(bytes32[2] memory input)
