@@ -2,6 +2,8 @@ import fs from "fs";
 import { ethers } from "hardhat";
 
 async function main() {
+  console.log("Signer address: %s", (await ethers.getSigners())[0].address);
+
   let erc20ABI = await ethers.getContractFactory("MockToken");
   let token = await erc20ABI.deploy();
 
