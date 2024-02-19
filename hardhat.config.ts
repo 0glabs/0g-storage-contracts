@@ -43,6 +43,12 @@ const config: HardhatUserConfig = {
         "YOUR_PRIVATE_KEY",
       ],
     },
+    conflux: {
+      url: "http://evmtestnet.confluxrpc.com",
+      accounts: [
+        "YOUR_PRIVATE_KEY",
+      ],
+    },
   },
   gasReporter: {
     currency: 'Gwei',
