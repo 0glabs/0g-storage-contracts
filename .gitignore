@@ -5,7 +5,7 @@ node_modules/
 .idea/
 .vscode/
 artifacts/
-deploy/*
+deploy/
 typechain-types/
 coverage/
 coverage.json
