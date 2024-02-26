@@ -8,7 +8,8 @@ async function main() {
   let token = await erc20ABI.deploy();
 
   let flowABI = await ethers.getContractFactory("Flow");
-  const blocksPerEpoch = 100;
+  // const blocksPerEpoch = 100;
+  const blocksPerEpoch = 9999999; // to mitigate issue: stack limit reached 1024 (1023) if no submission or mine txs for a long time
   let flow = await flowABI.deploy("0x0000000000000000000000000000000000000000", blocksPerEpoch, 0);
 
   await token.approve(flow.address, 1e9);
