@@ -2,7 +2,8 @@ import fs from "fs";
 import { ethers } from "hardhat";
 
 async function main() {
-  console.log("Signer address: %s", (await ethers.getSigners())[0].address);
+  let account = (await ethers.getSigners())[0].address;
+  let blockNumber = await ethers.provider.getBlockNumber();
 
   let erc20ABI = await ethers.getContractFactory("MockToken");
   let token = await erc20ABI.deploy();
@@ -18,7 +19,7 @@ async function main() {
   // TODO: deploy new contracts
   let mine = await mineABI.deploy(flow.address, "0x0000000000000000000000000000000000000000", 4);
 
-  const output = `token = '${token.address}'\nflow = '${flow.address}'\nPoraMine = '${mine.address}'`;
+  const output = `token = '${token.address}'\nflow = '${flow.address}'\nPoraMine = '${mine.address}'\nblockNumber = ${blockNumber}\naccount = '${account}'`;
 
   console.log(output);
   fs.writeFileSync("./deploy/localtest.py", output);
