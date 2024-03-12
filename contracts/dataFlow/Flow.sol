@@ -207,7 +207,7 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
             contextDigest
         );
 
-        // TODO: send reward.
+        // TODO: send reward to incentivize make context.
 
         // Recursive call to handle a rare case: the contract is more than one epoch behind.
         makeContext();

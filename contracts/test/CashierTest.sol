@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "../cashier/Cashier.sol";
 import "../reward/Reward.sol";
-import "../reward/ChunkReward.sol";
 import "../token/MockHackToken.sol";
 
 contract CashierTest is Cashier {

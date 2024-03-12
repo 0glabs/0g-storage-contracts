@@ -2,7 +2,7 @@ import { assert, expect } from "chai";
 import { ethers } from "hardhat";
 import { MockContract } from "ethereum-waffle";
 import { deployAddressBook, deployMock, transferBalance } from "./utils/deploy";
-import { CashierTest, ChunkReward } from "../typechain-types";
+import { CashierTest, ChunkDecayReward } from "../typechain-types";
 import { increaseTime, Snapshot } from "./utils/snapshot";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { predictContractAddress } from "../scripts/addressPredict";
@@ -21,7 +21,7 @@ describe("Cashier", async function () {
   let mockZgsToken: MockContract;
 
   let cashier: CashierTest;
-  let rewardContract: ChunkReward;
+  let rewardContract: ChunkDecayReward;
   let snapshot: Snapshot;
   let owner: SignerWithAddress;
   let mockMine: SignerWithAddress;
@@ -43,8 +43,8 @@ describe("Cashier", async function () {
 
     let book = await deployAddressBook({flow: mockFlow.address, mine: mockMine.address, reward: rewardAddress, market: marketAddress})
 
-    let rewardABI = await ethers.getContractFactory("ChunkReward");
-    rewardContract = await rewardABI.deploy(book.address);
+    let rewardABI = await ethers.getContractFactory("ChunkDecayReward");
+    rewardContract = await rewardABI.deploy(book.address, 40);
   
     let cashierABI = await ethers.getContractFactory("CashierTest");
     cashier = await cashierABI.deploy(
@@ -463,7 +463,7 @@ describe("Cashier", async function () {
         assert(
           reward.lockedReward.toBigInt() == BigInt(2 * GB) * BigInt(BASIC_PRICE)
         );
-        assert(reward.timestamp == 0);
+        assert(reward.startTime == 0);
 
         const rewardNext = await rewardContract.rewards(1);
         assert(rewardNext.lockedReward.toNumber() == 0);
@@ -476,7 +476,7 @@ describe("Cashier", async function () {
         assert(
           reward.lockedReward.toBigInt() == BigInt(6 * GB) * BigInt(BASIC_PRICE)
         );
-        assert(reward.timestamp > 0);
+        assert(reward.startTime > 0);
 
         const rewardNext = await rewardContract.rewards(1);
         assert(rewardNext.lockedReward.toNumber() == 0);
@@ -489,7 +489,7 @@ describe("Cashier", async function () {
         assert(
           reward.lockedReward.toBigInt() == BigInt(2 * GB) * BigInt(BASIC_PRICE)
         );
-        assert(reward.timestamp == 0);
+        assert(reward.startTime == 0);
 
         const rewardNext = await rewardContract.rewards(2);
         assert(rewardNext.lockedReward.toNumber() == 0);
@@ -507,7 +507,7 @@ describe("Cashier", async function () {
           reward0.lockedReward.toBigInt() ==
             BigInt(6 * GB) * BigInt(BASIC_PRICE)
         );
-        assert(reward0.timestamp > 0);
+        assert(reward0.startTime > 0);
 
         const reward1 = await rewardContract.rewards(1);
         assert(reward1.claimableReward.toNumber() == 0);
@@ -515,7 +515,7 @@ describe("Cashier", async function () {
           reward1.lockedReward.toBigInt() ==
             BigInt(8 * GB) * BigInt(BASIC_PRICE)
         );
-        assert(reward1.timestamp > 0);
+        assert(reward1.startTime > 0);
 
         const reward2 = await rewardContract.rewards(2);
         assert(reward2.claimableReward.toNumber() == 0);
@@ -523,7 +523,7 @@ describe("Cashier", async function () {
           reward2.lockedReward.toBigInt() ==
             BigInt(2 * GB) * BigInt(BASIC_PRICE)
         );
-        assert(reward2.timestamp == 0);
+        assert(reward2.startTime == 0);
 
         const rewardNext = await rewardContract.rewards(3);
         assert(rewardNext.lockedReward.toNumber() == 0);
