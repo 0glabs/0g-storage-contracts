@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./ISafeERC20.sol";
+import "../../token/ISafeERC20.sol";
 
 contract BatteryToken is ERC20, ISafeERC20 {
     ISafeERC20 public uploadToken;

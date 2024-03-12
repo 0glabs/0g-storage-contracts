@@ -2,10 +2,12 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./ISafeERC20.sol";
+
 import "./IUploadToken.sol";
-import "../utils/Exponent.sol";
-import "../utils/OnlySender.sol";
+
+import "../../utils/Exponent.sol";
+import "../../utils/OnlySender.sol";
+import "../../token/ISafeERC20.sol";
 
 contract UploadToken is ERC20, IUploadToken, OnlySender {
     uint256 public immutable blockInterval;

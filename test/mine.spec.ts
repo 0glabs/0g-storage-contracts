@@ -3,7 +3,7 @@ import { Contract, utils, BigNumber } from "ethers";
 import { ethers } from "hardhat";
 import { MockContract } from "ethereum-waffle";
 import { blake2b, keccak } from "hash-wasm";
-import { deployMock } from "./utils/deploy";
+import { deployAddressBook, deployMock } from "./utils/deploy";
 import env = require("hardhat");
 const { waffle } = env;
 
@@ -49,6 +49,7 @@ type MineContextStruct = {
 describe("Miner", function () {
   let mockFlow: MockContract;
   let mockCashier: MockContract;
+  let mockReward: MockContract;
   let mineContract: PoraMineTest;
   let minerId: Buffer;
   let snapshot: Snapshot;
@@ -58,11 +59,14 @@ describe("Miner", function () {
     
     mockFlow = await deployMock(owner, "Flow");
     mockCashier = await deployMock(owner, "Cashier");
+    mockReward = await deployMock(owner, "ChunkReward");
 
-    await mockCashier.mock.claimMineReward.returns();
+    await mockReward.mock.claimMineReward.returns();
+
+    let book = await deployAddressBook({flow: mockFlow.address, market: mockCashier.address})
 
     let mineABI = await ethers.getContractFactory("PoraMineTest");
-    mineContract = await mineABI.deploy(mockFlow.address, mockCashier.address, 0);
+    mineContract = await mineABI.deploy(book.address, 0);
 
     minerId = hexToBuffer(await keccak("minerId", 256));
     await mineContract.setMiner(minerId);

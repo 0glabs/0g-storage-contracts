@@ -1,10 +1,11 @@
 import { assert, expect } from "chai";
 import { ethers } from "hardhat";
 import { MockContract } from "ethereum-waffle";
-import { deployMock } from "./utils/deploy";
-import { CashierTest } from "../typechain-types";
+import { deployAddressBook, deployMock, transferBalance } from "./utils/deploy";
+import { CashierTest, ChunkReward } from "../typechain-types";
 import { increaseTime, Snapshot } from "./utils/snapshot";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { predictContractAddress } from "../scripts/addressPredict";
 
 const KB: number = 1024;
 const MB: number = 1024 * KB;
@@ -14,11 +15,13 @@ const BYTES_PER_SECTOR = 256;
 const BASIC_PRICE = 1000;
 const UPLOAD_TOKEN_PER_SECTOR: bigint = BigInt(10) ** BigInt(18);
 
-describe.only("Cashier", async function () {
+describe("Cashier", async function () {
   let mockCoupon: MockContract;
   let mockUploadToken: MockContract;
   let mockZgsToken: MockContract;
+
   let cashier: CashierTest;
+  let rewardContract: ChunkReward;
   let snapshot: Snapshot;
   let owner: SignerWithAddress;
   let mockMine: SignerWithAddress;
@@ -30,15 +33,26 @@ describe.only("Cashier", async function () {
 
     mockCoupon = await deployMock(owner, "Coupon");
     mockUploadToken = await deployMock(owner, "UploadToken");
-    mockZgsToken = await deployMock(owner, "MockToken");
+    mockZgsToken = await deployMock(owner, "MockHackToken");
 
+    await mockZgsToken.mock.receiveNative.returns()
+    await mockZgsToken.receiveNative({value: ethers.utils.parseEther("1000")})
+
+    const rewardAddress = await predictContractAddress(owner, 1);
+    const marketAddress = await predictContractAddress(owner, 2);
+
+    let book = await deployAddressBook({flow: mockFlow.address, mine: mockMine.address, reward: rewardAddress, market: marketAddress})
+
+    let rewardABI = await ethers.getContractFactory("ChunkReward");
+    rewardContract = await rewardABI.deploy(book.address);
+  
     let cashierABI = await ethers.getContractFactory("CashierTest");
     cashier = await cashierABI.deploy(
-      mockZgsToken.address,
+      book.address,
       mockUploadToken.address,
-      mockFlow.address,
-      mockMine.address,
-      mockStake.address
+      mockStake.address,
+      mockZgsToken.address,
+      {value: ethers.utils.parseEther("1000")}
     );
 
     snapshot = await new Snapshot().snapshot();
@@ -444,40 +458,40 @@ describe.only("Cashier", async function () {
       await topup((8 * GB) / BYTES_PER_SECTOR);
       {
         await cashierInternal.chargeFee((2 * GB) / BYTES_PER_SECTOR, 0);
-        const reward = await cashier.rewards(0);
+        const reward = await rewardContract.rewards(0);
         assert(reward.claimableReward.toNumber() == 0);
         assert(
           reward.lockedReward.toBigInt() == BigInt(2 * GB) * BigInt(BASIC_PRICE)
         );
         assert(reward.timestamp == 0);
 
-        const rewardNext = await cashier.rewards(1);
+        const rewardNext = await rewardContract.rewards(1);
         assert(rewardNext.lockedReward.toNumber() == 0);
       }
 
       {
         await cashierInternal.chargeFee((4 * GB) / BYTES_PER_SECTOR, 0);
-        const reward = await cashier.rewards(0);
+        const reward = await rewardContract.rewards(0);
         assert(reward.claimableReward.toNumber() == 0);
         assert(
           reward.lockedReward.toBigInt() == BigInt(6 * GB) * BigInt(BASIC_PRICE)
         );
         assert(reward.timestamp > 0);
 
-        const rewardNext = await cashier.rewards(1);
+        const rewardNext = await rewardContract.rewards(1);
         assert(rewardNext.lockedReward.toNumber() == 0);
       }
 
       {
         await cashierInternal.chargeFee((2 * GB) / BYTES_PER_SECTOR, 0);
-        const reward = await cashier.rewards(1);
+        const reward = await rewardContract.rewards(1);
         assert(reward.claimableReward.toNumber() == 0);
         assert(
           reward.lockedReward.toBigInt() == BigInt(2 * GB) * BigInt(BASIC_PRICE)
         );
         assert(reward.timestamp == 0);
 
-        const rewardNext = await cashier.rewards(2);
+        const rewardNext = await rewardContract.rewards(2);
         assert(rewardNext.lockedReward.toNumber() == 0);
       }
     });
@@ -487,7 +501,7 @@ describe.only("Cashier", async function () {
       await topup((16 * GB) / BYTES_PER_SECTOR);
       {
         await cashierInternal.chargeFee((16 * GB) / BYTES_PER_SECTOR, 0);
-        const reward0 = await cashier.rewards(0);
+        const reward0 = await rewardContract.rewards(0);
         assert(reward0.claimableReward.toNumber() == 0);
         assert(
           reward0.lockedReward.toBigInt() ==
@@ -495,7 +509,7 @@ describe.only("Cashier", async function () {
         );
         assert(reward0.timestamp > 0);
 
-        const reward1 = await cashier.rewards(1);
+        const reward1 = await rewardContract.rewards(1);
         assert(reward1.claimableReward.toNumber() == 0);
         assert(
           reward1.lockedReward.toBigInt() ==
@@ -503,7 +517,7 @@ describe.only("Cashier", async function () {
         );
         assert(reward1.timestamp > 0);
 
-        const reward2 = await cashier.rewards(2);
+        const reward2 = await rewardContract.rewards(2);
         assert(reward2.claimableReward.toNumber() == 0);
         assert(
           reward2.lockedReward.toBigInt() ==
@@ -511,7 +525,7 @@ describe.only("Cashier", async function () {
         );
         assert(reward2.timestamp == 0);
 
-        const rewardNext = await cashier.rewards(3);
+        const rewardNext = await rewardContract.rewards(3);
         assert(rewardNext.lockedReward.toNumber() == 0);
       }
     });
@@ -538,7 +552,7 @@ describe.only("Cashier", async function () {
 
       it("Permission test", async () => {
         await expect(
-          cashier.claimMineReward(0, owner.address)
+          rewardContract.claimMineReward(0, owner.address)
         ).to.be.revertedWith("Sender does not have permission");
       });
     });
