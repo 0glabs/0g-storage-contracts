@@ -9,7 +9,7 @@ import "../interfaces/AddressBook.sol";
 
 import "./Reward.sol";
 
-contract ChunkReward is IReward, OnlySender {
+abstract contract ChunkRewardBase is IReward, OnlySender {
     using RewardLibrary for Reward;
 
     mapping(uint256 => Reward) public rewards;
@@ -73,9 +73,21 @@ contract ChunkReward is IReward, OnlySender {
     {
         require(_msgSender() == book.mine(), "Sender does not have permission");
 
-        uint256 rewardAmount = rewards[pricingIndex].claimReward();
+        Reward memory reward = rewards[pricingIndex];
+
+        uint256 releasedReward = _releasedReward(reward);
+        reward.updateReward(releasedReward);
+        uint256 rewardAmount = reward.claimReward();
+
+        rewards[pricingIndex] = reward;
+
         if (rewardAmount > 0) {
             beneficiary.transfer(rewardAmount);
         }
     }
+
+    function _releasedReward(Reward memory reward)
+        internal
+        virtual
+        returns (uint256);
 }

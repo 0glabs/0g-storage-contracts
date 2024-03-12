@@ -59,7 +59,7 @@ describe("Miner", function () {
     
     mockFlow = await deployMock(owner, "Flow");
     mockCashier = await deployMock(owner, "Cashier");
-    mockReward = await deployMock(owner, "ChunkReward");
+    mockReward = await deployMock(owner, "ChunkDecayReward");
 
     await mockReward.mock.claimMineReward.returns();
 
