@@ -1,0 +1,47 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "DummyReward",
+  "sourceName": "contracts/interfaces/AddressBook.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "pricingIndex",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address payable",
+          "name": "beneficiary",
+          "type": "address"
+        }
+      ],
+      "name": "claimMineReward",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "beforeLength",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "uploadSectors",
+          "type": "uint256"
+        }
+      ],
+      "name": "fillReward",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b5060e48061001f6000396000f3fe60806040526004361060265760003560e01c806359e9670014602b578063ccec92c414603c575b600080fd5b603a60363660046053565b5050565b005b348015604757600080fd5b50603a60363660046074565b60008060408385031215606557600080fd5b50508035926020909101359150565b60008060408385031215608657600080fd5b8235915060208301356001600160a01b038116811460a357600080fd5b80915050925092905056fea26469706673582212201431f63fefc0029b38d2a7498510babcbb9c93ba21f64379ea9836dcc8d698f564736f6c63430008100033",
+  "deployedBytecode": "0x60806040526004361060265760003560e01c806359e9670014602b578063ccec92c414603c575b600080fd5b603a60363660046053565b5050565b005b348015604757600080fd5b50603a60363660046074565b60008060408385031215606557600080fd5b50508035926020909101359150565b60008060408385031215608657600080fd5b8235915060208301356001600160a01b038116811460a357600080fd5b80915050925092905056fea26469706673582212201431f63fefc0029b38d2a7498510babcbb9c93ba21f64379ea9836dcc8d698f564736f6c63430008100033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

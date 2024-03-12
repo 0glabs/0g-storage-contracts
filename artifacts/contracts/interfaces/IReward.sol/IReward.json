@@ -1,0 +1,47 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "IReward",
+  "sourceName": "contracts/interfaces/IReward.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "pricingIndex",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address payable",
+          "name": "beneficiary",
+          "type": "address"
+        }
+      ],
+      "name": "claimMineReward",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "beforeLength",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "uploadSectors",
+          "type": "uint256"
+        }
+      ],
+      "name": "fillReward",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
