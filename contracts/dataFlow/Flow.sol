@@ -4,13 +4,14 @@ pragma solidity >=0.8.0 <0.9.0;
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./Submission.sol";
 import "./IncrementalMerkleTree.sol";
-import "./IFlow.sol";
 import "../utils/IDigestHistory.sol";
 import "../utils/DigestHistory.sol";
 import "../utils/ZgsSpec.sol";
-import "../uploadMarket/Cashier.sol";
+import "../interfaces/IMarket.sol";
+import "../interfaces/IReward.sol";
+import "../interfaces/IFlow.sol";
+import "../interfaces/AddressBook.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -20,14 +21,12 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
     using SafeERC20 for IERC20;
 
     uint256 private constant MAX_DEPTH = 64;
-    uint256 private constant BASE_FEE = 1000;
-    uint256 private constant ENTRY_FEE = 100;
     uint256 private constant ROOT_AVAILABLE_WINDOW = 20;
 
     bytes32 private constant EMPTY_HASH =
         hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
 
-    ICashier public immutable cashier;
+    AddressBook public immutable book;
     IDigestHistory public immutable rootHistory;
     uint256 public immutable blocksPerEpoch;
     uint256 public immutable firstBlock;
@@ -36,8 +35,6 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
     uint256 public epoch;
     uint256 public epochStartPosition;
 
-    uint256 public totalRewards;
-
     MineContext private context;
     mapping(bytes32 => EpochRange) private epochRanges;
     EpochRangeWithContextDigest[] private epochRangeHistory;
@@ -45,7 +42,7 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
     error InvalidSubmission();
 
     constructor(
-        address cashier_,
+        address book_,
         uint256 blocksPerEpoch_,
         uint256 deployDelay_
     ) IncrementalMerkleTree(bytes32(0x0)) {
@@ -54,7 +51,7 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         rootHistory = new DigestHistory(ROOT_AVAILABLE_WINDOW);
         firstBlock = block.number + deployDelay_;
 
-        cashier = ICashier(cashier_);
+        book = AddressBook(book_);
 
         context = MineContext({
             epoch: 0,
@@ -144,9 +141,7 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         uint256 paddedLength = startIndex - previousLength;
         uint256 chargedLength = currentLength - startIndex;
 
-        if (address(cashier) != address(0)) {
-            cashier.chargeFee(chargedLength, paddedLength);
-        }
+        book.market().chargeFee(chargedLength, paddedLength);
     }
 
     function makeContext() public launched {

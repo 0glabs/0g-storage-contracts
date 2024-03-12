@@ -8,9 +8,10 @@ import "../utils/IDigestHistory.sol";
 import "../utils/DigestHistory.sol";
 import "../utils/BitMask.sol";
 import "../utils/ZgsSpec.sol";
-import "../dataFlow/IFlow.sol";
 import "../utils/Blake2b.sol";
-import "../uploadMarket/ICashier.sol";
+import "../interfaces/IMarket.sol";
+import "../interfaces/IFlow.sol";
+import "../interfaces/AddressBook.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -32,10 +33,8 @@ contract PoraMine {
     // Options for ZeroGStorage-mine development
     bool public immutable sealDataEnabled;
     bool public immutable dataProofEnabled;
-    bool public immutable marketEnabled;
 
-    IFlow public immutable flow;
-    ICashier public immutable cashier;
+    AddressBook public immutable book;
 
     uint256 public lastMinedEpoch = 0;
     uint256 public targetQuality;
@@ -44,23 +43,12 @@ contract PoraMine {
     uint256 public totalMiningTime;
     uint256 public totalSubmission;
 
-    constructor(
-        address flow_,
-        address cashier_,
-        uint256 settings
-    ) {
+    constructor(address book_, uint256 settings) {
         targetQuality = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
         sealDataEnabled = (settings & NO_DATA_SEAL == 0);
         dataProofEnabled = (settings & NO_DATA_PROOF == 0);
-        marketEnabled = (settings & NO_MARKET == 0);
 
-        require(
-            cashier_ != address(0) || !marketEnabled,
-            "Cashier does not inited correctly"
-        );
-
-        flow = IFlow(flow_);
-        cashier = ICashier(cashier_);
+        book = AddressBook(book_);
     }
 
     struct PoraAnswer {
@@ -77,6 +65,8 @@ contract PoraMine {
     }
 
     function submit(PoraAnswer memory answer) public {
+        IFlow flow = book.flow();
+
         flow.makeContext();
         MineContext memory context = flow.getContext();
         require(
@@ -114,12 +104,10 @@ contract PoraMine {
         // _adjustQuality(context);
 
         // Step 5: reward fee
-        if (marketEnabled) {
-            cashier.claimMineReward(
-                answer.recallPosition / SECTORS_PER_PRICE,
-                msg.sender
-            );
-        }
+        book.reward().claimMineReward(
+            answer.recallPosition / SECTORS_PER_PRICE,
+            payable(msg.sender)
+        );
     }
 
     function basicCheck(PoraAnswer memory answer, MineContext memory context)
@@ -147,7 +135,7 @@ contract PoraMine {
 
         require(answer.mineLength >= requiredLength, "Mining range too short");
 
-        EpochRange memory range = flow.getEpochRange(
+        EpochRange memory range = book.flow().getEpochRange(
             answer.sealedContextDigest
         );
         uint256 recallEndPosition = answer.recallPosition + SECTORS_PER_SEAL;

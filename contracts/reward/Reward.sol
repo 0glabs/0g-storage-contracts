@@ -37,7 +37,10 @@ library RewardLibrary {
         }
 
         uint256 timeElapsed = (block.timestamp - reward.timestamp) * 1000;
-        uint256 decayX64 = (timeElapsed * (1 << 64) * 4) /
+        uint256 decayX64 = (timeElapsed *
+            uint256(Exponential.INV_LOG2X128) *
+            4) /
+            (1 << 64) /
             MILLI_SECONDS_PER_YEAR /
             100;
         uint256 releaseX96 = (1 << 96) - Exponential.powHalf64X96(decayX64);

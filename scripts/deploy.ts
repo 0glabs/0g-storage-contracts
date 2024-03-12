@@ -1,21 +1,30 @@
 import fs from "fs";
 import { ethers } from "hardhat";
+import { predictContractAddress } from "./addressPredict";
+
+const ZERO = "0x0000000000000000000000000000000000000000"
 
 async function main() {
-  let erc20ABI = await ethers.getContractFactory("MockToken");
-  let token = await erc20ABI.deploy();
+  const [owner] = await ethers.getSigners();
 
-  let flowABI = await ethers.getContractFactory("Flow");
+  const flowAddress = await predictContractAddress(owner, 1);
+  const mineAddress = await predictContractAddress(owner, 2);
+
+  const bookABI = await ethers.getContractFactory("AddressBook");
+  const book = await bookABI.deploy(flowAddress, ZERO, ZERO, mineAddress);  
+
+  const flowABI = await ethers.getContractFactory("Flow");
   const blocksPerEpoch = 1_000_000;
-  let flow = await flowABI.deploy(token.address, blocksPerEpoch, 0);
+  const flow = await flowABI.deploy(book.address, blocksPerEpoch, 0);
 
-  await token.approve(flow.address, 1e9);
+  const blockNumber = await ethers.provider.getBlockNumber();
+  const account = owner.address;
 
-  let mineABI = await ethers.getContractFactory("PoraMineTest");
-  // TODO: deploy new contracts
-  let mine = await mineABI.deploy(flow.address, "0x0000000000000000000000000000000000000000", 7);
+  const mineABI = await ethers.getContractFactory("PoraMineTest");
+  const mine = await mineABI.deploy(book.address, 3);
 
-  const output = `token = '${token.address}'\nflow = '${flow.address}'\nPoraMine = '${mine.address}'`;
+
+  const output = `flow = '${flow.address}'\nPoraMine = '${mine.address}'\nblockNumber = ${blockNumber}\naccount = '${account}'`;
 
   console.log(output);
   fs.writeFileSync("./deploy/localtest.py", output);
