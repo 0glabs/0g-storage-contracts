@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "../utils/UQ112x112.sol";
 import "../token/ISafeERC20.sol";
-import "../token/IUploadToken.sol";
+import "./token/IUploadToken.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract PeakSwap {

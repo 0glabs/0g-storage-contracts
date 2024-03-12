@@ -5,12 +5,15 @@ import "./UncheckedMath.sol";
 import "hardhat/console.sol";
 
 library Exponential {
-    int256 private constant LOG2X128 = 235865763225513294137944142764154484399;
+    int256 public constant LOG2X128 = 235865763225513294137944142764154484399;
     int256 private constant LOG2_2X128 =
         163489688770384171654468164494102986538;
     int256 private constant LOG2_3X128 =
         113322416821814740463990287346838243787;
     int256 private constant LOG2_4X128 = 78549113714279805586246364391047974677;
+
+    int256 public constant INV_LOG2X128 =
+        490923683258796565746369346286093237521;
 
     uint256 private constant ROOT_POW10X127 =
         0x8016302f174676283690dfe44d11d008;

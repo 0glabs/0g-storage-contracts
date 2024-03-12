@@ -2,8 +2,8 @@
 pragma solidity >=0.8.0;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "../utils/OnlySender.sol";
-import "./ISafeERC20.sol";
+import "../../utils/OnlySender.sol";
+import "../../token/ISafeERC20.sol";
 
 contract Coupon is ERC721, Ownable, OnlySender {
     event Fuel(uint256 indexed tokenId, uint256 amount);
