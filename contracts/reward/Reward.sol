@@ -2,13 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "../utils/Exponent.sol";
-
-uint256 constant DAYS_PER_MONTH = 31;
-uint256 constant SECONDS_PER_MONTH = 86400 * DAYS_PER_MONTH;
-
-uint256 constant DAYS_PER_YEAR = 365;
-uint256 constant SECONDS_PER_YEAR = 86400 * DAYS_PER_YEAR;
-uint256 constant MILLI_SECONDS_PER_YEAR = 1000 * SECONDS_PER_YEAR;
+import "../utils/ZgsSpec.sol";
 
 struct Reward {
     uint128 lockedReward;

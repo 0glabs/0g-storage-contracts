@@ -20,7 +20,6 @@ contract Cashier is IMarket, OnlySender, TimeInterval {
     int256 public gauge;
     uint256 public drippingRate;
     uint256 public lastUpdate;
-    uint256 public flowLength;
 
     uint256 public paidUploadAmount;
     uint256 public paidFee;
@@ -47,12 +46,10 @@ contract Cashier is IMarket, OnlySender, TimeInterval {
         uploadToken = IUploadToken(uploadToken_);
         stake = stake_;
 
-        flowLength = 1;
-
         _tick();
     }
 
-    function updateGauge() public {
+    function refreshGauge() public {
         uint256 timeElapsedInMilliSeconds = _tick();
         uint256 gaugeDelta = (timeElapsedInMilliSeconds * drippingRate) / 1000;
         gauge += int256(gaugeDelta);
@@ -61,9 +58,8 @@ contract Cashier is IMarket, OnlySender, TimeInterval {
         }
     }
 
-    function _updateTotalSubmission(uint256 sectors) internal {
-        updateGauge();
-        flowLength += sectors;
+    function _updateDrippingRate(uint256 flowLength) internal {
+        refreshGauge();
         drippingRate = Math.min(3 * MB, (flowLength * BYTES_PER_SECTOR) / MB);
     }
 
@@ -72,19 +68,19 @@ contract Cashier is IMarket, OnlySender, TimeInterval {
         paidFee += fee;
     }
 
-    function chargeFee(uint256 uploadSectors, uint256 paddingSectors)
-        external
-        onlySender(flow)
-    {
+    function chargeFee(
+        uint256 beforeLength,
+        uint256 uploadSectors,
+        uint256 paddingSectors
+    ) public onlySender(flow) {
         require(
             paidUploadAmount >= uploadSectors,
             "Data submission is not paid"
         );
 
         uint256 totalSectors = uploadSectors + paddingSectors;
-
-        uint256 beforeLength = flowLength;
-        _updateTotalSubmission(totalSectors);
+        uint256 afterLength = beforeLength + totalSectors;
+        _updateDrippingRate(afterLength);
 
         uint256 chargedFee = (uploadSectors * paidFee) / paidUploadAmount;
         paidFee -= chargedFee;
@@ -98,7 +94,7 @@ contract Cashier is IMarket, OnlySender, TimeInterval {
         uint256 maxPrice,
         uint256 maxTipPrice
     ) external payable {
-        updateGauge();
+        refreshGauge();
         uint256 purchaseBytes = sectors * BYTES_PER_SECTOR;
         uint256 basicFee = purchaseBytes * BASIC_PRICE;
         uint256 priorFee = computePriorityFee(purchaseBytes);
@@ -180,9 +176,5 @@ contract Cashier is IMarket, OnlySender, TimeInterval {
         }
         uint256 answerX96 = answerX128 >> 32;
         return ((answerX96 * BASIC_PRICE * (900 * MB)) / 100) >> 96;
-    }
-
-    function getFlowLength() external view returns (uint256) {
-        return flowLength;
     }
 }

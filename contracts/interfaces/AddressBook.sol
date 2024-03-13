@@ -6,9 +6,11 @@ import "../interfaces/IReward.sol";
 import "../interfaces/IFlow.sol";
 
 contract DummyMarket is IMarket {
-    function chargeFee(uint256 uploadSectors, uint256 paddingSectors)
-        external
-    {}
+    function chargeFee(
+        uint256 beforeLength,
+        uint256 uploadSectors,
+        uint256 paddingSectors
+    ) external {}
 }
 
 contract DummyReward is IReward {

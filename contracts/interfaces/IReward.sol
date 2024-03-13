@@ -3,7 +3,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 interface IReward {
-    function fillReward(uint256 beforeLength, uint256 uploadSectors)
+    function fillReward(uint256 beforeLength, uint256 rewardSectors)
         external
         payable;
 

@@ -70,6 +70,7 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
 
     function batchSubmit(Submission[] memory submissions)
         public
+        payable
         whenNotPaused
         launched
         returns (
@@ -98,8 +99,11 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         }
     }
 
+    function _beforeSubmit(uint256 sectors) internal virtual {}
+
     function submit(Submission memory submission)
         public
+        payable
         whenNotPaused
         launched
         returns (
@@ -141,7 +145,7 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         uint256 paddedLength = startIndex - previousLength;
         uint256 chargedLength = currentLength - startIndex;
 
-        book.market().chargeFee(chargedLength, paddedLength);
+        book.market().chargeFee(previousLength, chargedLength, paddedLength);
     }
 
     function makeContext() public launched {
