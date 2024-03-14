@@ -113,10 +113,11 @@ contract OnePoolReward is IReward, Context {
             _msgSender() == address(book.flow()),
             "Sender does not have permission"
         );
-        require(
-            pricingIndex >= firstValidChunk && pricingIndex < lastValidChunk,
-            "The target price chunk is not open for mine"
-        );
+
+        if (pricingIndex < firstValidChunk) {
+            // The target price chunk is not open for mine
+            return;
+        }
 
         refresh();
 
