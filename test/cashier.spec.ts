@@ -2,7 +2,7 @@ import { assert, expect } from "chai";
 import { ethers } from "hardhat";
 import { MockContract } from "ethereum-waffle";
 import { deployAddressBook, deployMock, transferBalance } from "./utils/deploy";
-import { CashierTest, ChunkReward } from "../typechain-types";
+import { CashierTest, ChunkDecayReward } from "../typechain-types";
 import { increaseTime, Snapshot } from "./utils/snapshot";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { predictContractAddress } from "../scripts/addressPredict";
@@ -21,7 +21,7 @@ describe("Cashier", async function () {
   let mockZgsToken: MockContract;
 
   let cashier: CashierTest;
-  let rewardContract: ChunkReward;
+  let rewardContract: ChunkDecayReward;
   let snapshot: Snapshot;
   let owner: SignerWithAddress;
   let mockMine: SignerWithAddress;
@@ -43,8 +43,8 @@ describe("Cashier", async function () {
 
     let book = await deployAddressBook({flow: mockFlow.address, mine: mockMine.address, reward: rewardAddress, market: marketAddress})
 
-    let rewardABI = await ethers.getContractFactory("ChunkReward");
-    rewardContract = await rewardABI.deploy(book.address);
+    let rewardABI = await ethers.getContractFactory("ChunkDecayReward");
+    rewardContract = await rewardABI.deploy(book.address, 40);
   
     let cashierABI = await ethers.getContractFactory("CashierTest");
     cashier = await cashierABI.deploy(
@@ -67,7 +67,7 @@ describe("Cashier", async function () {
       await cashier.updateTotalSubmission((3 * TB) / BYTES_PER_SECTOR);
       let beforeGauge = (await cashier.gauge()).toBigInt();
       await increaseTime(100);
-      await cashier.updateGauge();
+      await cashier.refreshGauge();
       let afterGauge = (await cashier.gauge()).toBigInt();
       assert(
         afterGauge - beforeGauge == BigInt(300 * MB),
@@ -78,7 +78,7 @@ describe("Cashier", async function () {
     it("Upper bound capped", async () => {
       await cashier.updateTotalSubmission((3 * TB) / BYTES_PER_SECTOR);
       await increaseTime(20000);
-      await cashier.updateGauge();
+      await cashier.refreshGauge();
       let afterGauge = (await cashier.gauge()).toBigInt();
       assert(afterGauge == BigInt(30 * GB));
     });
@@ -87,7 +87,7 @@ describe("Cashier", async function () {
       await cashier.updateTotalSubmission((1 * TB) / BYTES_PER_SECTOR - 1);
       let beforeGauge = (await cashier.gauge()).toBigInt();
       await increaseTime(100);
-      await cashier.updateGauge();
+      await cashier.refreshGauge();
       let afterGauge = (await cashier.gauge()).toBigInt();
       assert(
         afterGauge - beforeGauge == BigInt(100 * MB),
@@ -101,7 +101,7 @@ describe("Cashier", async function () {
       await increaseTime(100);
       await cashier.updateTotalSubmission((1 * TB) / BYTES_PER_SECTOR);
       await increaseTime(100);
-      await cashier.updateGauge();
+      await cashier.refreshGauge();
       let afterGauge = (await cashier.gauge()).toBigInt();
       assert(
         afterGauge - beforeGauge == BigInt(300 * MB),
@@ -117,7 +117,7 @@ describe("Cashier", async function () {
       await increaseTime(100);
       await cashier.purchase((50 * MB) / BYTES_PER_SECTOR, BASIC_PRICE, 0);
       await increaseTime(100);
-      await cashier.updateGauge();
+      await cashier.refreshGauge();
       let afterGauge = (await cashier.gauge()).toBigInt();
       assert(
         afterGauge - beforeGauge == BigInt(550 * MB),
@@ -425,7 +425,7 @@ describe("Cashier", async function () {
     });
 
     it("Permission test", async () => {
-      await expect(cashier.chargeFee(7, 8)).to.be.revertedWith(
+      await expect(cashier.chargeFeeTest(7, 8)).to.be.revertedWith(
         "Sender does not have permission"
       );
     });
@@ -433,7 +433,7 @@ describe("Cashier", async function () {
     it("Update dripping rate", async () => {
       const SECTORS = 1024 * 1024;
       await topup(SECTORS);
-      await cashierInternal.chargeFee(SECTORS, SECTORS - 1);
+      await cashierInternal.chargeFeeTest(SECTORS, SECTORS - 1);
       expect(await cashier.drippingRate()).to.equal(
         (2 * SECTORS * BYTES_PER_SECTOR) / MB
       );
@@ -441,14 +441,14 @@ describe("Cashier", async function () {
 
     it("Not paid", async () => {
       await topup(4);
-      await expect(cashierInternal.chargeFee(8, 7)).to.be.revertedWith(
+      await expect(cashierInternal.chargeFeeTest(8, 7)).to.be.revertedWith(
         "Data submission is not paid"
       );
     });
 
     it("Charge partial", async () => {
       await topup(16);
-      await cashierInternal.chargeFee(8, 7);
+      await cashierInternal.chargeFeeTest(8, 7);
       expect(await cashier.paidFee()).equal(8 * BYTES_PER_SECTOR * BASIC_PRICE);
       expect(await cashier.paidUploadAmount()).equal(8);
     });
@@ -457,39 +457,39 @@ describe("Cashier", async function () {
       await cashier.updateTotalSubmission((2 * GB) / BYTES_PER_SECTOR - 1);
       await topup((8 * GB) / BYTES_PER_SECTOR);
       {
-        await cashierInternal.chargeFee((2 * GB) / BYTES_PER_SECTOR, 0);
+        await cashierInternal.chargeFeeTest((2 * GB) / BYTES_PER_SECTOR, 0);
         const reward = await rewardContract.rewards(0);
         assert(reward.claimableReward.toNumber() == 0);
         assert(
           reward.lockedReward.toBigInt() == BigInt(2 * GB) * BigInt(BASIC_PRICE)
         );
-        assert(reward.timestamp == 0);
+        assert(reward.startTime == 0);
 
         const rewardNext = await rewardContract.rewards(1);
         assert(rewardNext.lockedReward.toNumber() == 0);
       }
 
       {
-        await cashierInternal.chargeFee((4 * GB) / BYTES_PER_SECTOR, 0);
+        await cashierInternal.chargeFeeTest((4 * GB) / BYTES_PER_SECTOR, 0);
         const reward = await rewardContract.rewards(0);
         assert(reward.claimableReward.toNumber() == 0);
         assert(
           reward.lockedReward.toBigInt() == BigInt(6 * GB) * BigInt(BASIC_PRICE)
         );
-        assert(reward.timestamp > 0);
+        assert(reward.startTime > 0);
 
         const rewardNext = await rewardContract.rewards(1);
         assert(rewardNext.lockedReward.toNumber() == 0);
       }
 
       {
-        await cashierInternal.chargeFee((2 * GB) / BYTES_PER_SECTOR, 0);
+        await cashierInternal.chargeFeeTest((2 * GB) / BYTES_PER_SECTOR, 0);
         const reward = await rewardContract.rewards(1);
         assert(reward.claimableReward.toNumber() == 0);
         assert(
           reward.lockedReward.toBigInt() == BigInt(2 * GB) * BigInt(BASIC_PRICE)
         );
-        assert(reward.timestamp == 0);
+        assert(reward.startTime == 0);
 
         const rewardNext = await rewardContract.rewards(2);
         assert(rewardNext.lockedReward.toNumber() == 0);
@@ -500,14 +500,14 @@ describe("Cashier", async function () {
       await cashier.updateTotalSubmission((2 * GB) / BYTES_PER_SECTOR - 1);
       await topup((16 * GB) / BYTES_PER_SECTOR);
       {
-        await cashierInternal.chargeFee((16 * GB) / BYTES_PER_SECTOR, 0);
+        await cashierInternal.chargeFeeTest((16 * GB) / BYTES_PER_SECTOR, 0);
         const reward0 = await rewardContract.rewards(0);
         assert(reward0.claimableReward.toNumber() == 0);
         assert(
           reward0.lockedReward.toBigInt() ==
             BigInt(6 * GB) * BigInt(BASIC_PRICE)
         );
-        assert(reward0.timestamp > 0);
+        assert(reward0.startTime > 0);
 
         const reward1 = await rewardContract.rewards(1);
         assert(reward1.claimableReward.toNumber() == 0);
@@ -515,7 +515,7 @@ describe("Cashier", async function () {
           reward1.lockedReward.toBigInt() ==
             BigInt(8 * GB) * BigInt(BASIC_PRICE)
         );
-        assert(reward1.timestamp > 0);
+        assert(reward1.startTime > 0);
 
         const reward2 = await rewardContract.rewards(2);
         assert(reward2.claimableReward.toNumber() == 0);
@@ -523,7 +523,7 @@ describe("Cashier", async function () {
           reward2.lockedReward.toBigInt() ==
             BigInt(2 * GB) * BigInt(BASIC_PRICE)
         );
-        assert(reward2.timestamp == 0);
+        assert(reward2.startTime == 0);
 
         const rewardNext = await rewardContract.rewards(3);
         assert(rewardNext.lockedReward.toNumber() == 0);
@@ -538,11 +538,11 @@ describe("Cashier", async function () {
         if (finalized) {
           await cashier
             .connect(mockFlow)
-            .chargeFee((6 * GB) / BYTES_PER_SECTOR, 0);
+            .chargeFeeTest((6 * GB) / BYTES_PER_SECTOR, 0);
         } else {
           await cashier
             .connect(mockFlow)
-            .chargeFee((5 * GB) / BYTES_PER_SECTOR, 0);
+            .chargeFeeTest((5 * GB) / BYTES_PER_SECTOR, 0);
         }
       }
       let cashierInternal: CashierTest;

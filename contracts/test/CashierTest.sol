@@ -3,11 +3,11 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "../cashier/Cashier.sol";
 import "../reward/Reward.sol";
-import "../reward/ChunkReward.sol";
 import "../token/MockHackToken.sol";
 
 contract CashierTest is Cashier {
     MockHackToken public immutable zgsToken;
+    uint256 public flowLength;
 
     constructor(
         address book,
@@ -16,10 +16,19 @@ contract CashierTest is Cashier {
         address zgsToken_
     ) payable Cashier(book, uploadToken, stake) {
         zgsToken = MockHackToken(zgsToken_);
+        flowLength = 1;
     }
 
     function updateTotalSubmission(uint256 sectors) external {
-        _updateTotalSubmission(sectors);
+        flowLength += sectors;
+        _updateDrippingRate(flowLength);
+    }
+
+    function chargeFeeTest(uint256 uploadSectors, uint256 paddingSectors)
+        external
+    {
+        chargeFee(flowLength, uploadSectors, paddingSectors);
+        flowLength += uploadSectors + paddingSectors;
     }
 
     function setGauge(int256 gauge_) external {
