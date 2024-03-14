@@ -49,6 +49,12 @@ const config: HardhatUserConfig = {
         "YOUR_PRIVATE_KEY",
       ],
     },
+    zg: {
+      url: "https://rpc-testnet.0g.ai",
+      accounts: [
+        "YOUR_PRIVATE_KEY",
+      ],
+    }
   },
   gasReporter: {
     currency: 'Gwei',
