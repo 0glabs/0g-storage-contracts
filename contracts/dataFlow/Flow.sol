@@ -114,11 +114,14 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         )
     {
         require(submission.valid(), "Invalid submission");
+
+        uint256 length = submission.size();
+        _beforeSubmit(length);
+
         makeContext();
 
         uint256 startIndex = _insertNodeList(submission);
 
-        uint256 length = submission.size();
         bytes32 digest = submission.digest();
         uint256 index = submissionIndex;
         submissionIndex += 1;
