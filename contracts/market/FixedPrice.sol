@@ -28,6 +28,7 @@ contract FixedPrice is IMarket, Context {
 
         uint256 totalSectors = uploadSectors + paddingSectors;
         uint256 baseFee = pricePerSector * uploadSectors;
+        require(baseFee <= address(this).balance, "Not enough paid fee");
         uint256 bonus = address(this).balance - baseFee;
 
         uint256 paddingPart = (baseFee * paddingSectors) / totalSectors;

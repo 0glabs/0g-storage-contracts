@@ -37,7 +37,7 @@ contract OnePoolReward is IReward, Context {
             return;
         }
 
-        uint256 reward = ((lastUpdateTimestamp - timestamp) *
+        uint256 reward = ((timestamp - lastUpdateTimestamp) *
             (lastValidChunk - firstValidChunk) *
             BYTES_PER_PRICE *
             ANNUAL_ZGS_TOKENS_PER_GB *
@@ -54,6 +54,7 @@ contract OnePoolReward is IReward, Context {
 
         if (length == 0) {
             lastUpdateTimestamp = block.timestamp;
+            _updateAccumulatedRewardTo(block.timestamp);
             return;
         }
 
@@ -73,10 +74,11 @@ contract OnePoolReward is IReward, Context {
             timeoutHead += 1;
 
             if (timeoutHead == length) {
-                _updateAccumulatedRewardTo(block.timestamp);
-                return;
+                break;
             }
         }
+
+        _updateAccumulatedRewardTo(block.timestamp);
     }
 
     function fillReward(uint256 beforeLength, uint256 rewardSectors)
@@ -110,7 +112,7 @@ contract OnePoolReward is IReward, Context {
         external
     {
         require(
-            _msgSender() == address(book.flow()),
+            _msgSender() == address(book.mine()),
             "Sender does not have permission"
         );
 
@@ -126,6 +128,9 @@ contract OnePoolReward is IReward, Context {
             claimable = address(this).balance;
         }
 
-        beneficiary.transfer(claimable);
+        if (claimable > 0) {
+            beneficiary.transfer(claimable);
+            emit DistributeReward(pricingIndex, beneficiary, claimable);
+        }
     }
 }

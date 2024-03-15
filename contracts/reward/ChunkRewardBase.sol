@@ -83,6 +83,7 @@ abstract contract ChunkRewardBase is IReward, OnlySender {
 
         if (rewardAmount > 0) {
             beneficiary.transfer(rewardAmount);
+            emit DistributeReward(pricingIndex, beneficiary, rewardAmount);
         }
     }
 
