@@ -1,4 +1,4 @@
-# ZeroGStorage 
+# 0G Storage Contract 
 
 ## Introduction
 
