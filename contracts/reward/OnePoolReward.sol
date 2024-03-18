@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/utils/Context.sol";
 
 contract OnePoolReward is IReward, Context {
     AddressBook public immutable book;
-    uint256 public immutable lifetimeSeconds;
+    uint256 public immutable lifetimeInSeconds;
     TimeoutItem[] public timeoutRecords;
     uint256 public timeoutHead;
 
@@ -21,14 +21,18 @@ contract OnePoolReward is IReward, Context {
     uint256 public claimedReward;
     uint256 public lastUpdateTimestamp;
 
+    uint256 public nextChunkDonation;
+    uint256 public activeDonation;
+
     struct TimeoutItem {
         uint64 numPriceChunks;
         uint64 timeoutTimestamp;
+        uint256 donation;
     }
 
     constructor(address book_, uint256 lifetimeMonthes) {
         book = AddressBook(book_);
-        lifetimeSeconds = lifetimeMonthes * SECONDS_PER_MONTH;
+        lifetimeInSeconds = lifetimeMonthes * SECONDS_PER_MONTH;
         lastUpdateTimestamp = block.timestamp;
     }
 
@@ -45,7 +49,10 @@ contract OnePoolReward is IReward, Context {
             GB /
             SECONDS_PER_YEAR;
 
-        accumulatedReward += reward;
+        uint256 bonus = (activeDonation * (timestamp - lastUpdateTimestamp)) /
+            lifetimeInSeconds;
+
+        accumulatedReward += reward + bonus;
         lastUpdateTimestamp = timestamp;
     }
 
@@ -65,11 +72,13 @@ contract OnePoolReward is IReward, Context {
                 timeoutRecords[timeoutHead].timeoutTimestamp
             );
             firstValidChunk += timeoutRecords[timeoutHead].numPriceChunks;
+            activeDonation -= timeoutRecords[timeoutHead].donation;
 
             // Free storage
             timeoutRecords[timeoutHead] = TimeoutItem({
                 numPriceChunks: 0,
-                timeoutTimestamp: 0
+                timeoutTimestamp: 0,
+                donation: 0
             });
             timeoutHead += 1;
 
@@ -100,11 +109,15 @@ contract OnePoolReward is IReward, Context {
         if (afterPriceChunk > beforePriceChunk) {
             TimeoutItem memory item = TimeoutItem({
                 numPriceChunks: uint64(afterPriceChunk - beforePriceChunk),
-                timeoutTimestamp: uint64(block.timestamp + lifetimeSeconds)
+                timeoutTimestamp: uint64(block.timestamp + lifetimeInSeconds),
+                donation: nextChunkDonation
             });
+
             timeoutRecords.push(item);
 
             lastValidChunk = afterPriceChunk;
+            activeDonation += nextChunkDonation;
+            nextChunkDonation = 0;
         }
     }
 
@@ -132,5 +145,9 @@ contract OnePoolReward is IReward, Context {
             beneficiary.transfer(claimable);
             emit DistributeReward(pricingIndex, beneficiary, claimable);
         }
+    }
+
+    receive() external payable {
+        nextChunkDonation += msg.value;
     }
 }
