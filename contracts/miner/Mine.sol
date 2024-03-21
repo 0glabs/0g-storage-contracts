@@ -22,17 +22,20 @@ contract PoraMine {
     bytes32 private constant EMPTY_HASH =
         hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
 
-    uint256 private constant DIFFICULTY_ADJUST_PERIOD = 100;
-    uint256 private constant TARGET_PERIOD = 100;
+    uint256 private constant DIFFICULTY_ADJUST_RATIO = 20;
+    uint256 private constant TARGET_MINE_TIME = 300;
 
     // Settings bit
     uint256 private constant NO_DATA_SEAL = 0x1;
     uint256 private constant NO_DATA_PROOF = 0x2;
-    uint256 private constant NO_MARKET = 0x4;
+    uint256 private constant FIXED_QUALITY = 0x4;
 
     // Options for ZeroGStorage-mine development
     bool public immutable sealDataEnabled;
     bool public immutable dataProofEnabled;
+    bool public immutable fixedQuality;
+
+    uint256 public adjustRatio;
 
     AddressBook public immutable book;
 
@@ -40,13 +43,20 @@ contract PoraMine {
     uint256 public targetQuality;
     mapping(address => bytes32) public minerIds;
 
-    uint256 public totalMiningTime;
-    uint256 public totalSubmission;
-
-    constructor(address book_, uint256 settings) {
-        targetQuality = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+    constructor(
+        address book_,
+        uint256 initRate,
+        uint256 adjustRatio_,
+        uint256 settings
+    ) {
+        targetQuality = type(uint256).max / initRate / TARGET_MINE_TIME;
+        adjustRatio = adjustRatio_;
         sealDataEnabled = (settings & NO_DATA_SEAL == 0);
         dataProofEnabled = (settings & NO_DATA_PROOF == 0);
+        fixedQuality = (settings & FIXED_QUALITY != 0);
+        if (fixedQuality) {
+            targetQuality = type(uint256).max;
+        }
 
         book = AddressBook(book_);
     }
@@ -100,8 +110,10 @@ contract PoraMine {
             "Do not reach target quality"
         );
 
-        // TODO: Step 4: adjust quality
-        // _adjustQuality(context);
+        // Step 4: adjust quality
+        if (!fixedQuality) {
+            _adjustQuality(context);
+        }
 
         // Step 5: reward fee
         book.reward().claimMineReward(
@@ -320,27 +332,42 @@ contract PoraMine {
         return currentHash;
     }
 
+    function registMiner(bytes32 minerId) public {
+        if (!sealDataEnabled) {
+            // Miner ID is for data sealing only. If data sealing is not disabled, we don't need too much check here.
+            minerIds[msg.sender] = minerId;
+        } else {
+            require(false, "Not implemented yet");
+        }
+    }
+
     function _adjustQuality(MineContext memory context) internal {
         uint256 miningTime = block.number - context.mineStart;
-        totalMiningTime += miningTime;
-        totalSubmission += 1;
-        if (totalSubmission == DIFFICULTY_ADJUST_PERIOD) {
-            uint256 targetMiningTime = TARGET_PERIOD * totalSubmission;
-            (bool overflow, uint256 multiply) = SafeMath.tryMul(
-                targetQuality,
-                totalMiningTime
-            );
-            if (overflow) {
-                targetQuality = Math.mulDiv(
-                    targetQuality,
-                    totalMiningTime,
-                    targetMiningTime
-                );
-            } else {
-                targetQuality = multiply / targetMiningTime;
-            }
-            totalMiningTime = 0;
-            totalSubmission = 0;
+
+        // Remove least significant 16 bits to avoid overflow
+        uint256 scaledTarget = targetQuality >> 16;
+        uint256 scaledExpected = Math.mulDiv(
+            scaledTarget,
+            miningTime,
+            TARGET_MINE_TIME
+        );
+
+        uint256 n = DIFFICULTY_ADJUST_RATIO;
+
+        uint256 scaledAdjusted = (scaledTarget * (n - 1) + scaledExpected) / n;
+
+        if (scaledAdjusted > scaledTarget * 2) {
+            scaledAdjusted = scaledTarget * 2;
         }
+
+        if (scaledAdjusted < scaledTarget / 2) {
+            scaledAdjusted = scaledTarget / 2;
+        }
+
+        if (scaledAdjusted > type(uint256).max >> 16) {
+            scaledAdjusted = type(uint256).max >> 16;
+        }
+
+        targetQuality = scaledAdjusted << 16;
     }
 }
