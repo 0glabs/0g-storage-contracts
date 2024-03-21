@@ -151,14 +151,14 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         book.market().chargeFee(previousLength, chargedLength, paddedLength);
     }
 
-    function makeContext() public launched {
+    function _makeContext() internal returns (bool) {
         uint256 nextEpochStart;
         unchecked {
             nextEpochStart = firstBlock + (epoch + 1) * blocksPerEpoch;
         }
 
         if (nextEpochStart >= block.number) {
-            return;
+            return false;
         }
         commitRoot();
         bytes32 currentRoot = root();
@@ -213,11 +213,19 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
             currentLength,
             contextDigest
         );
+        return true;
+    }
 
-        // TODO: send reward to incentivize make context.
+    function makeContext() public launched {
+        while (_makeContext()) {}
+    }
 
-        // Recursive call to handle a rare case: the contract is more than one epoch behind.
-        makeContext();
+    function makeContextFixedTimes(uint256 cnt) public launched {
+        for (uint256 i = 0; i <= cnt; ++i) {
+            if (!_makeContext()) {
+                return;
+            }
+        }
     }
 
     function queryContextAtPosition(uint128 targetPosition)
