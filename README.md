@@ -58,6 +58,8 @@ By setting environment variables, you can control the types of contracts deploye
 
 - **LIFETIME_MONTH**: Upon enabling the economic model, this controls the data storage validity period and the reward release cycle. The annual storage cost per GB is a constant in the contract named `ANNUAL_ZGS_TOKENS_PER_GB`.
 
+- **INIT_HASH_RATE**: The initial hash rate for PoRA mining.
+
 ### targetnetwork
 
 You have several options for the target network, which you can modify in `hardhat.config.ts`:

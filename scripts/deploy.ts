@@ -13,6 +13,7 @@ function parseBool(str: string) {
 const enableMarket = parseBool(process.env["ENABLE_MARKET"] || "false");
 const blocksPerEpoch = parseInt(process.env["BLOCKS_PER_EPOCH"] || "1000000000");
 const lifetimeMonth = parseInt(process.env["LIFETIME_MONTH"] || "3");
+const initHashRate = parseInt(process.env["INIT_HASH_RATE"] || "1000");
 
 const ZERO = "0x0000000000000000000000000000000000000000"
 
@@ -34,8 +35,8 @@ async function deploySimpleMarket() {
   const bookABI = await ethers.getContractFactory("AddressBook");
   const book = await bookABI.deploy(flowAddress, marketAddress, rewardAddress, mineAddress);
 
-  const mineABI = await ethers.getContractFactory("PoraMineTest");
-  const mine = await mineABI.deploy(book.address, 3);
+  const mineABI = await ethers.getContractFactory("PoraMine");
+  const mine = await mineABI.deploy(book.address, initHashRate, 20, 3);
 
   const marketABI = await ethers.getContractFactory("FixedPrice");
   const market = await marketABI.deploy(book.address, lifetimeMonth);
