@@ -121,7 +121,7 @@ contract OnePoolReward is IReward, Context {
         }
     }
 
-    function claimMineReward(uint256 pricingIndex, address payable beneficiary)
+    function claimMineReward(uint256 pricingIndex, address payable beneficiary, bytes32)
         external
     {
         require(

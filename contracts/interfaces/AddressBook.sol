@@ -19,7 +19,7 @@ contract DummyReward is IReward {
         payable
     {}
 
-    function claimMineReward(uint256 pricingIndex, address payable beneficiary)
+    function claimMineReward(uint256 pricingIndex, address payable beneficiary, bytes32 minerId)
         external
     {}
 }

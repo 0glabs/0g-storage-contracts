@@ -23,7 +23,7 @@ contract PoraMine {
         hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
 
     uint256 private constant DIFFICULTY_ADJUST_RATIO = 20;
-    uint256 private constant TARGET_MINE_TIME = 300;
+    uint256 private constant TARGET_MINE_BLOCK = 100;
 
     // Settings bit
     uint256 private constant NO_DATA_SEAL = 0x1;
@@ -41,7 +41,10 @@ contract PoraMine {
 
     uint256 public lastMinedEpoch = 0;
     uint256 public targetQuality;
-    mapping(address => bytes32) public minerIds;
+    mapping(bytes32 => address) public beneficiaries;
+
+    event NewMinerId(bytes32 indexed minerId, address indexed beneficiary);
+    event UpdateMinerId(bytes32 indexed minerId, address indexed from, address indexed to);
 
     constructor(
         address book_,
@@ -49,7 +52,7 @@ contract PoraMine {
         uint256 adjustRatio_,
         uint256 settings
     ) {
-        targetQuality = type(uint256).max / initRate / TARGET_MINE_TIME;
+        targetQuality = type(uint256).max / initRate / 300;
         adjustRatio = adjustRatio_;
         sealDataEnabled = (settings & NO_DATA_SEAL == 0);
         dataProofEnabled = (settings & NO_DATA_PROOF == 0);
@@ -75,6 +78,10 @@ contract PoraMine {
     }
 
     function submit(PoraAnswer memory answer) public {
+        require(answer.minerId!=bytes32(0), "MinerId cannot be zero");
+        address beneficiary = beneficiaries[answer.minerId];
+        require(beneficiary!=address(0), "MinerId does not registered");
+
         IFlow flow = book.flow();
 
         flow.makeContext();
@@ -118,7 +125,8 @@ contract PoraMine {
         // Step 5: reward fee
         book.reward().claimMineReward(
             answer.recallPosition / SECTORS_PER_PRICE,
-            payable(msg.sender)
+            payable(beneficiary),
+            answer.minerId
         );
     }
 
@@ -158,12 +166,10 @@ contract PoraMine {
     }
 
     function pora(PoraAnswer memory answer) public view returns (bytes32) {
-        bytes32 minerId = minerIds[msg.sender];
-        require(answer.minerId != bytes32(0x0), "Miner ID does not exist");
-        require(answer.minerId == minerId, "Miner ID is inconsistent");
+        require(answer.minerId != bytes32(0x0), "Miner ID cannot be empty");
 
         bytes32[5] memory seedInput = [
-            minerId,
+            answer.minerId,
             answer.nonce,
             answer.contextDigest,
             bytes32(answer.startPosition),
@@ -213,7 +219,7 @@ contract PoraMine {
         h = Blake2b.blake2bF(
             h,
             bytes32(answer.sealOffset),
-            minerId,
+            answer.minerId,
             answer.nonce,
             answer.contextDigest,
             128,
@@ -332,24 +338,28 @@ contract PoraMine {
         return currentHash;
     }
 
-    function registMiner(bytes32 minerId) public {
-        if (!sealDataEnabled) {
-            // Miner ID is for data sealing only. If data sealing is not disabled, we don't need too much check here.
-            minerIds[msg.sender] = minerId;
-        } else {
-            require(false, "Not implemented yet");
-        }
+    function requestMinerId(address beneficiary, uint64 seed) public {
+        bytes32 minerId = keccak256(abi.encodePacked(blockhash(block.number - 1), msg.sender, seed));
+        require(beneficiaries[minerId] == address(0), "MinerId has registered");
+        beneficiaries[minerId] = beneficiary;
+        emit NewMinerId(minerId, beneficiary);
+    }
+
+    function transferBeneficial(address to, bytes32 minerId) public {
+        require(beneficiaries[minerId] == msg.sender, "Sender does not own minerId");
+        beneficiaries[minerId] = to;
+        emit UpdateMinerId(minerId, msg.sender, to);
     }
 
     function _adjustQuality(MineContext memory context) internal {
-        uint256 miningTime = block.number - context.mineStart;
+        uint256 miningBlocks = block.number - context.mineStart;
 
         // Remove least significant 16 bits to avoid overflow
         uint256 scaledTarget = targetQuality >> 16;
         uint256 scaledExpected = Math.mulDiv(
             scaledTarget,
-            miningTime,
-            TARGET_MINE_TIME
+            miningBlocks,
+            TARGET_MINE_BLOCK
         );
 
         uint256 n = DIFFICULTY_ADJUST_RATIO;

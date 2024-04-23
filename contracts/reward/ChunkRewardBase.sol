@@ -68,7 +68,7 @@ abstract contract ChunkRewardBase is IReward, OnlySender {
         }
     }
 
-    function claimMineReward(uint256 pricingIndex, address payable beneficiary)
+    function claimMineReward(uint256 pricingIndex, address payable beneficiary, bytes32)
         external
     {
         require(_msgSender() == book.mine(), "Sender does not have permission");
