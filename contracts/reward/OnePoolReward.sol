@@ -121,9 +121,11 @@ contract OnePoolReward is IReward, Context {
         }
     }
 
-    function claimMineReward(uint256 pricingIndex, address payable beneficiary)
-        external
-    {
+    function claimMineReward(
+        uint256 pricingIndex,
+        address payable beneficiary,
+        bytes32
+    ) external {
         require(
             _msgSender() == address(book.mine()),
             "Sender does not have permission"
