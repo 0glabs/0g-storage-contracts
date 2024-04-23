@@ -7,6 +7,11 @@
       "inputs": [
         {
           "internalType": "uint256",
+          "name": "beforeLength",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
           "name": "uploadSectors",
           "type": "uint256"
         },

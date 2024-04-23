@@ -39,6 +39,11 @@
           "internalType": "address payable",
           "name": "beneficiary",
           "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "minerId",
+          "type": "bytes32"
         }
       ],
       "name": "claimMineReward",
