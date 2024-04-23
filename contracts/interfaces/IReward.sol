@@ -13,6 +13,9 @@ interface IReward {
         external
         payable;
 
-    function claimMineReward(uint256 pricingIndex, address payable beneficiary)
-        external;
+    function claimMineReward(
+        uint256 pricingIndex,
+        address payable beneficiary,
+        bytes32 minerId
+    ) external;
 }
