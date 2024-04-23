@@ -9,7 +9,7 @@ contract PoraMineTest is PoraMine {
     {}
 
     function setMiner(bytes32 minerId) external {
-        minerIds[msg.sender] = minerId;
+        beneficiaries[minerId] = msg.sender;
     }
 
     function setQuality(uint256 _targetQuality) external {
