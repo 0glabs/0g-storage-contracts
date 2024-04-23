@@ -551,8 +551,9 @@ describe("Cashier", async function () {
       });
 
       it("Permission test", async () => {
+        const minerId = Buffer.from("0000000000000000000000000000000000000000000000000000000000000001", "hex")
         await expect(
-          rewardContract.claimMineReward(0, owner.address)
+          rewardContract.claimMineReward(0, owner.address, minerId)
         ).to.be.revertedWith("Sender does not have permission");
       });
     });

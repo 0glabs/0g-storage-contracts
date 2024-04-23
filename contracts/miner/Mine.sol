@@ -44,7 +44,11 @@ contract PoraMine {
     mapping(bytes32 => address) public beneficiaries;
 
     event NewMinerId(bytes32 indexed minerId, address indexed beneficiary);
-    event UpdateMinerId(bytes32 indexed minerId, address indexed from, address indexed to);
+    event UpdateMinerId(
+        bytes32 indexed minerId,
+        address indexed from,
+        address indexed to
+    );
 
     constructor(
         address book_,
@@ -78,9 +82,9 @@ contract PoraMine {
     }
 
     function submit(PoraAnswer memory answer) public {
-        require(answer.minerId!=bytes32(0), "MinerId cannot be zero");
+        require(answer.minerId != bytes32(0), "MinerId cannot be zero");
         address beneficiary = beneficiaries[answer.minerId];
-        require(beneficiary!=address(0), "MinerId does not registered");
+        require(beneficiary != address(0), "MinerId does not registered");
 
         IFlow flow = book.flow();
 
@@ -339,14 +343,19 @@ contract PoraMine {
     }
 
     function requestMinerId(address beneficiary, uint64 seed) public {
-        bytes32 minerId = keccak256(abi.encodePacked(blockhash(block.number - 1), msg.sender, seed));
+        bytes32 minerId = keccak256(
+            abi.encodePacked(blockhash(block.number - 1), msg.sender, seed)
+        );
         require(beneficiaries[minerId] == address(0), "MinerId has registered");
         beneficiaries[minerId] = beneficiary;
         emit NewMinerId(minerId, beneficiary);
     }
 
     function transferBeneficial(address to, bytes32 minerId) public {
-        require(beneficiaries[minerId] == msg.sender, "Sender does not own minerId");
+        require(
+            beneficiaries[minerId] == msg.sender,
+            "Sender does not own minerId"
+        );
         beneficiaries[minerId] = to;
         emit UpdateMinerId(minerId, msg.sender, to);
     }
