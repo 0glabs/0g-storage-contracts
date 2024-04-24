@@ -36,7 +36,7 @@ async function deploySimpleMarket() {
   const book = await bookABI.deploy(flowAddress, marketAddress, rewardAddress, mineAddress);
 
   const mineABI = await ethers.getContractFactory("PoraMine");
-  const mine = await mineABI.deploy(book.address, initHashRate, 20, 3);
+  const mine = await mineABI.deploy(book.address, initHashRate, 20, 0);
 
   const marketABI = await ethers.getContractFactory("FixedPrice");
   const market = await marketABI.deploy(book.address, lifetimeMonth);
@@ -73,7 +73,7 @@ async function deployNoMarket() {
   const account = owner.address;
 
   const mineABI = await ethers.getContractFactory("PoraMineTest");
-  const mine = await mineABI.deploy(book.address, 3);
+  const mine = await mineABI.deploy(book.address, 0);
 
   const output = `flow = '${flow.address}'\nPoraMine = '${mine.address}'\nblockNumber = ${blockNumber}\naccount = '${account}'`;
 
