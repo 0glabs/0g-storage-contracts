@@ -144,12 +144,10 @@ contract PoraMine {
         require(context.digest != EMPTY_HASH, "Empty digest can not mine");
         require(context.epoch > lastMinedEpoch, "Epoch has been mined");
 
-
         // Check validity of recall range
         uint256 maxLength = (context.flowLength / SECTORS_PER_LOAD) *
             SECTORS_PER_LOAD;
         answer.range.check(maxLength);
-
 
         // Check the sealing context is in the correct range.
         EpochRange memory epochRange = book.flow().getEpochRange(
@@ -166,22 +164,23 @@ contract PoraMine {
     function pora(PoraAnswer memory answer) public view returns (bytes32) {
         require(answer.minerId != bytes32(0x0), "Miner ID cannot be empty");
 
-        bytes32[5] memory seedInput = [
+        bytes32[4] memory seedInput = [
             answer.minerId,
             answer.nonce,
             answer.contextDigest,
-            bytes32(answer.range.startPosition),
-            bytes32(answer.range.mineLength)
+            answer.range.digest()
         ];
 
         bytes32[2] memory padSeed = Blake2b.blake2b(seedInput);
 
-
         uint256 scratchPadOffset = answer.sealOffset % SEALS_PER_PAD;
         bytes32[UNITS_PER_SEAL] memory mixedData;
         bytes32[2] memory padDigest;
-        (padDigest, mixedData) = MineLib.computeScratchPadAndMix(answer.sealedData, scratchPadOffset, padSeed);
-        
+        (padDigest, mixedData) = MineLib.computeScratchPadAndMix(
+            answer.sealedData,
+            scratchPadOffset,
+            padSeed
+        );
 
         require(
             answer.recallPosition ==
@@ -191,53 +190,7 @@ contract PoraMine {
             "Incorrect recall position"
         );
 
-        bytes32[2] memory h;
-        h[0] = Blake2b.BLAKE2B_INIT_STATE0;
-        h[1] = Blake2b.BLAKE2B_INIT_STATE1;
-
-        h = Blake2b.blake2bF(
-            h,
-            bytes32(answer.sealOffset),
-            padSeed[0],
-            padSeed[1],
-            bytes32(0),
-            128,
-            false
-        );
-        // h = Blake2b.blake2bF(
-        //     h,
-        //     bytes32(answer.range.startPosition),
-        //     bytes32(answer.range.mineLength),
-        //     bytes32(0),
-        //     bytes32(0),
-        //     256,
-        //     false
-        // );
-        for (uint256 i = 0; i < UNITS_PER_SEAL - 4; i += 4) {
-            uint256 length;
-            unchecked {
-                length = 128 + 32 * (i + 4);
-            }
-            h = Blake2b.blake2bF(
-                h,
-                mixedData[i],
-                mixedData[i + 1],
-                mixedData[i + 2],
-                mixedData[i + 3],
-                length,
-                false
-            );
-        }
-        h = Blake2b.blake2bF(
-            h,
-            mixedData[UNITS_PER_SEAL - 4],
-            mixedData[UNITS_PER_SEAL - 3],
-            mixedData[UNITS_PER_SEAL - 2],
-            mixedData[UNITS_PER_SEAL - 1],
-            128 + UNITS_PER_SEAL * 32,
-            true
-        );
-        return h[0];
+        return MineLib.computePoraHash(answer.sealOffset, padSeed, mixedData);
     }
 
     function unseal(PoraAnswer memory answer)

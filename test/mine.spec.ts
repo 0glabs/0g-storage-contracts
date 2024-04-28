@@ -10,6 +10,7 @@ const { waffle } = env;
 import { PoraMineTest, PoraMine } from "../typechain-types";
 import { MockMerkle, genLeaves, genLeafData } from "./utils/mockMerkleTree";
 import { Snapshot } from "./utils/snapshot";
+import { keccak256 } from "ethers/lib/utils";
 
 const abiCoder = new utils.AbiCoder();
 
@@ -50,7 +51,7 @@ type MineContextStruct = {
   digest: Buffer;
 };
 
-describe("Miner", function () {
+describe.only("Miner", function () {
   let mockFlow: MockContract;
   let mockCashier: MockContract;
   let mockReward: MockContract;
@@ -93,12 +94,13 @@ describe("Miner", function () {
     const sealOffset = 11;
 
     const tree = await new MockMerkle(await genLeaves(length - 1)).build();
+    const recallDigest = hexToBuffer(await keccak256(abiCoder.encode(["uint256", "uint256"], [0, tree.length()])));
     const context: MineContextStruct = await makeContextDigest(tree);
     const { scratchPad, chunkOffset, padSeed } = await makeScratchPad(
       minerId,
       nonce,
       context.digest,
-      0,
+      recallDigest,
       tree.length()
     );
     const recallPosition = chunkOffset * 1024 + sealOffset * 16;
@@ -349,8 +351,8 @@ async function makeScratchPad(
   minerId: Buffer,
   nonce: Buffer,
   contextDigest: Buffer,
-  startPosition: number,
-  length: number
+  recallDigest: Buffer,
+  length: number,
 ): Promise<{ scratchPad: Buffer[]; chunkOffset: number, padSeed: Buffer }> {
   let answer = Array(1024);
 
@@ -360,8 +362,7 @@ async function makeScratchPad(
         minerId,
         nonce,
         contextDigest,
-        numToU256(startPosition),
-        numToU256(length),
+        recallDigest,
       ])
     )
   );

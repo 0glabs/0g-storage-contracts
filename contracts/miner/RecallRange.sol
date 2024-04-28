@@ -27,6 +27,10 @@ library RecallRangeLib {
         require(range.mineLength >= requiredLength, "Mining range too short");
     }
 
+    function digest(RecallRange memory range) internal pure returns (bytes32) {
+        return keccak256(abi.encode(range.startPosition, range.mineLength));
+    }
+
     function recallChunk(RecallRange memory range, bytes32 seed)
         internal
         pure
