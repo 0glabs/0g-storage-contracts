@@ -24,12 +24,16 @@ function numToU256(num: number): Buffer {
   return hexToBuffer(abiCoder.encode(["uint256"], [num]));
 }
 
+type RecallRangeStruct = {
+  startPosition: number;
+  mineLength: number;
+};
+
 type PoraAnswerStruct = {
   contextDigest: Buffer;
   nonce: Buffer;
   minerId: Buffer;
-  startPosition: number;
-  mineLength: number;
+  range: RecallRangeStruct,
   recallPosition: number;
   sealOffset: number;
   sealedContextDigest: Buffer;
@@ -108,12 +112,16 @@ describe("Miner", function () {
       recallPosition
     );
 
+    const range: RecallRangeStruct = {
+      startPosition: 0,
+      mineLength: tree.length(),
+    };
+
     let answer: PoraAnswerStruct = {
       contextDigest: context.digest,
       nonce,
       minerId,
-      startPosition: 0,
-      mineLength: tree.length(),
+      range,
       recallPosition,
       sealOffset,
       sealedContextDigest,
@@ -160,8 +168,7 @@ describe("Miner", function () {
       .withArgs(answer.sealedContextDigest)
       .returns({ start: 0, end: tree.length() });
 
-    await mockFlow.mock.getContext.withArgs().returns(context);
-    await mockFlow.mock.makeContext.withArgs().returns();
+    await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
 
     await mineContract.submit(answer);
   });
@@ -169,8 +176,7 @@ describe("Miner", function () {
   it("check valid/invalid epoch range", async () => {
     let { context, answer } = await makeTestData();
 
-    await mockFlow.mock.getContext.withArgs().returns(context);
-    await mockFlow.mock.makeContext.withArgs().returns();
+    await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
 
     const localSnapshot = await new Snapshot().snapshot();
 
@@ -230,33 +236,32 @@ describe("Miner", function () {
 
     let { context, answer, tree } = await makeTestData();
     context.flowLength = 10 * TB;
-    await mockFlow.mock.getContext.withArgs().returns(context);
-    await mockFlow.mock.makeContext.withArgs().returns();
+    await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
     await mockFlow.mock.getEpochRange
       .withArgs(answer.sealedContextDigest)
       .returns({ start: 0, end: context.flowLength });
 
-    answer.startPosition = 3 * TB;
-    answer.mineLength = 8 * TB;
+    answer.range.startPosition = 3 * TB;
+    answer.range.mineLength = 8 * TB;
     await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
       "Mining range overflow"
     );
 
-    answer.startPosition = 2 * TB - GB;
+    answer.range.startPosition = 2 * TB - GB;
     await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
       "Start position is not aligned"
     );
 
-    answer.startPosition = 2 * TB;
-    answer.mineLength = 8 * TB - 8 * GB;
+    answer.range.startPosition = 2 * TB;
+    answer.range.mineLength = 8 * TB - 8 * GB;
     await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
       "Mining range too short"
     );
 
-    answer.mineLength = 8 * TB;
+    answer.range.mineLength = 8 * TB;
     await mineContract.basicCheck(answer, context);
 
-    answer.startPosition = 8 * GB;
+    answer.range.startPosition = 8 * GB;
     await mineContract.basicCheck(answer, context);
 
     context.flowLength = 8 * TB - 1;
@@ -264,12 +269,12 @@ describe("Miner", function () {
       .withArgs(answer.sealedContextDigest)
       .returns({ start: 0, end: context.flowLength });
 
-    answer.startPosition = 0;
-    answer.mineLength = 8 * TB - 256 * KB;
+    answer.range.startPosition = 0;
+    answer.range.mineLength = 8 * TB - 256 * KB;
     await mineContract.basicCheck(answer, context);
 
-    answer.startPosition = 8 * GB;
-    answer.mineLength = 8 * TB - 16 * GB;
+    answer.range.startPosition = 8 * GB;
+    answer.range.mineLength = 8 * TB - 16 * GB;
 
     await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
       "Mining range too short"
