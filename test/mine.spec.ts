@@ -94,7 +94,7 @@ describe("Miner", function () {
 
     const tree = await new MockMerkle(await genLeaves(length - 1)).build();
     const context: MineContextStruct = await makeContextDigest(tree);
-    const { scratchPad, chunkOffset } = await makeScratchPad(
+    const { scratchPad, chunkOffset, padSeed } = await makeScratchPad(
       minerId,
       nonce,
       context.digest,
@@ -135,12 +135,8 @@ describe("Miner", function () {
       await blake2b(
         Buffer.concat([
           numToU256(answer.sealOffset),
-          minerId,
-          nonce,
-          context.digest,
-          numToU256(0),
-          numToU256(tree.length()),
-          Buffer.from(Array(64).fill(0)),
+          padSeed,
+          Buffer.from(Array(32).fill(0)),
           Buffer.concat(mixedData),
         ])
       )
@@ -355,7 +351,7 @@ async function makeScratchPad(
   contextDigest: Buffer,
   startPosition: number,
   length: number
-): Promise<{ scratchPad: Buffer[]; chunkOffset: number }> {
+): Promise<{ scratchPad: Buffer[]; chunkOffset: number, padSeed: Buffer }> {
   let answer = Array(1024);
 
   let input = hexToBuffer(
@@ -369,6 +365,8 @@ async function makeScratchPad(
       ])
     )
   );
+
+  const padSeed = input;
 
   for (let i = 0; i < 1024; i++) {
     answer[i] = hexToBuffer(await blake2b(input));
@@ -384,7 +382,7 @@ async function makeScratchPad(
     .toNumber();
   const scratchPad = answer;
 
-  return { scratchPad, chunkOffset };
+  return { scratchPad, chunkOffset, padSeed };
 }
 
 function mixData(

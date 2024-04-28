@@ -174,12 +174,13 @@ contract PoraMine {
             bytes32(answer.range.mineLength)
         ];
 
-        bytes32[2] memory padDigest = Blake2b.blake2b(seedInput);
+        bytes32[2] memory padSeed = Blake2b.blake2b(seedInput);
 
 
         uint256 scratchPadOffset = answer.sealOffset % SEALS_PER_PAD;
         bytes32[UNITS_PER_SEAL] memory mixedData;
-        (padDigest, mixedData) = MineLib.computeScratchPadAndMix(answer.sealedData, scratchPadOffset, padDigest);
+        bytes32[2] memory padDigest;
+        (padDigest, mixedData) = MineLib.computeScratchPadAndMix(answer.sealedData, scratchPadOffset, padSeed);
         
 
         require(
@@ -197,25 +198,25 @@ contract PoraMine {
         h = Blake2b.blake2bF(
             h,
             bytes32(answer.sealOffset),
-            answer.minerId,
-            answer.nonce,
-            answer.contextDigest,
+            padSeed[0],
+            padSeed[1],
+            bytes32(0),
             128,
             false
         );
-        h = Blake2b.blake2bF(
-            h,
-            bytes32(answer.range.startPosition),
-            bytes32(answer.range.mineLength),
-            bytes32(0),
-            bytes32(0),
-            256,
-            false
-        );
+        // h = Blake2b.blake2bF(
+        //     h,
+        //     bytes32(answer.range.startPosition),
+        //     bytes32(answer.range.mineLength),
+        //     bytes32(0),
+        //     bytes32(0),
+        //     256,
+        //     false
+        // );
         for (uint256 i = 0; i < UNITS_PER_SEAL - 4; i += 4) {
             uint256 length;
             unchecked {
-                length = 256 + 32 * (i + 4);
+                length = 128 + 32 * (i + 4);
             }
             h = Blake2b.blake2bF(
                 h,
@@ -233,7 +234,7 @@ contract PoraMine {
             mixedData[UNITS_PER_SEAL - 3],
             mixedData[UNITS_PER_SEAL - 2],
             mixedData[UNITS_PER_SEAL - 1],
-            256 + UNITS_PER_SEAL * 32,
+            128 + UNITS_PER_SEAL * 32,
             true
         );
         return h[0];
