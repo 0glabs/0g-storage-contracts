@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../utils/ZgsSpec.sol";
-import "hardhat/console.sol";
 
 struct RecallRange {
     uint256 startPosition;

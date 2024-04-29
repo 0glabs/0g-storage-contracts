@@ -85,21 +85,18 @@ describe("Miner", function () {
     await snapshot.revert();
   });
 
-  async function makeTestData({ length, nonce, shardMask, shardId }: { length?: number, nonce?: Buffer, shardMask?: bigint, shardId?: bigint }) {
-    const defaultNonce = hexToBuffer(await keccak("nonce", 256));
+  async function makeTestData({ length, flow, nonceSeed, shardMask, shardId }: { length?: number, flow?: MockMerkle, nonceSeed?: number, shardMask?: bigint, shardId?: bigint }) {
+    const nonce = hexToBuffer(await keccak(nonceSeed?.toString() || "nonce", 256));
 
     const sealOffset = 11;
 
-    const leaves = await genLeaves((length || 16384) - 1);
-    const tree = await new MockMerkle(leaves).build();
+    const tree = flow || await new MockMerkle(await genLeaves((length || 16384) - 1)).build();
     const range: RecallRangeStruct = {
       startPosition: 0,
       mineLength: tree.length(),
       shardMask: shardMask || (BigInt(2) ** BigInt(64) - BigInt(1)),
       shardId: shardId || BigInt(0),
     };
-
-    const nonce_ = nonce || defaultNonce;
 
     const recallDigest = hexToBuffer(await keccak256(
       abiCoder.encode(
@@ -110,7 +107,7 @@ describe("Miner", function () {
     const context: MineContextStruct = await makeContextDigest(tree);
     const { scratchPad, chunkOffset, padSeed } = await makeScratchPad(
       minerId,
-      nonce_,
+      nonce,
       context.digest,
       recallDigest,
       tree.length()
@@ -129,7 +126,7 @@ describe("Miner", function () {
 
     let answer: PoraAnswerStruct = {
       contextDigest: context.digest,
-      nonce: nonce_,
+      nonce,
       minerId,
       range,
       recallPosition,
@@ -180,27 +177,41 @@ describe("Miner", function () {
   });
 
   it("sharded info test", async () => {
-    let { context, answer, tree, unsealedData, quality } = await makeTestData({ shardMask: BigInt(2) ** BigInt(64) - BigInt(256), shardId: BigInt(3) });
+    const flow = await new MockMerkle(await genLeaves(16384 - 1)).build();
+    for(let i=0; i<32; i++) {
+      let { context, answer, tree, unsealedData, quality } = await makeTestData({ 
+        shardMask: BigInt(2) ** BigInt(64) - BigInt(8), shardId: BigInt(3), nonceSeed: i, flow
+      });
+      const q = hexToBuffer(quality.slice(0, 2))[0];
+      if (q >= 0x80) {
+        break;
+      }
 
-    expect(await mineContract.unseal(answer)).to.deep.equal(
-      unsealedData.map((x) => "0x" + x.toString("hex"))
-    );
+      expect(await mineContract.unseal(answer)).to.deep.equal(
+        unsealedData.map((x) => "0x" + x.toString("hex"))
+      );
 
-    expect(
-      hexToBuffer(await mineContract.recoverMerkleRoot(answer, unsealedData))
-    ).to.deep.equal(tree.root());
+      expect(
+        hexToBuffer(await mineContract.recoverMerkleRoot(answer, unsealedData))
+      ).to.deep.equal(tree.root());
 
-    expect(hexToBuffer(await mineContract.pora(answer))).to.deep.equal(
-      hexToBuffer(quality.slice(0, 64))
-    );
+      expect(hexToBuffer(await mineContract.pora(answer))).to.deep.equal(
+        hexToBuffer(quality.slice(0, 64))
+      );
 
-    await mockFlow.mock.getEpochRange
-      .withArgs(answer.sealedContextDigest)
-      .returns({ start: 0, end: tree.length() });
+      await mockFlow.mock.getEpochRange
+        .withArgs(answer.sealedContextDigest)
+        .returns({ start: 0, end: tree.length() });
 
-    await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
+      await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
 
-    await mineContract.submit(answer);
+      if (q < 0x20) {
+        await mineContract.submit(answer);
+        await snapshot.revert();
+      } else {
+        await expect(mineContract.submit(answer)).to.be.revertedWith("Do not reach target quality");
+      }
+    }
   });
 
   it("incorrect sharded info test", async () => {

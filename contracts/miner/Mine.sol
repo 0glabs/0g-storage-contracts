@@ -112,7 +112,7 @@ contract PoraMine {
         // Step 4: compute PoRA quality
         bytes32 quality = pora(answer);
         require(
-            uint256(quality) <= targetQuality,
+            uint256(quality) <= targetQuality / answer.range.numShards(),
             "Do not reach target quality"
         );
 
