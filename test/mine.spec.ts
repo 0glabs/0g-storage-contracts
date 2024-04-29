@@ -10,6 +10,7 @@ const { waffle } = env;
 import { PoraMineTest, PoraMine } from "../typechain-types";
 import { MockMerkle, genLeaves, genLeafData } from "./utils/mockMerkleTree";
 import { Snapshot } from "./utils/snapshot";
+import { keccak256 } from "ethers/lib/utils";
 
 const abiCoder = new utils.AbiCoder();
 
@@ -24,12 +25,18 @@ function numToU256(num: number): Buffer {
   return hexToBuffer(abiCoder.encode(["uint256"], [num]));
 }
 
+type RecallRangeStruct = {
+  startPosition: number;
+  mineLength: number;
+  shardId: bigint;
+  shardMask: bigint;
+};
+
 type PoraAnswerStruct = {
   contextDigest: Buffer;
   nonce: Buffer;
   minerId: Buffer;
-  startPosition: number;
-  mineLength: number;
+  range: RecallRangeStruct,
   recallPosition: number;
   sealOffset: number;
   sealedContextDigest: Buffer;
@@ -56,14 +63,14 @@ describe("Miner", function () {
 
   before(async () => {
     const [owner] = await ethers.getSigners();
-    
+
     mockFlow = await deployMock(owner, "Flow");
     mockCashier = await deployMock(owner, "Cashier");
     mockReward = await deployMock(owner, "ChunkDecayReward");
 
     await mockReward.mock.claimMineReward.returns();
 
-    let book = await deployAddressBook({flow: mockFlow.address, market: mockCashier.address})
+    let book = await deployAddressBook({ flow: mockFlow.address, market: mockCashier.address })
 
     let mineABI = await ethers.getContractFactory("PoraMineTest");
     mineContract = await mineABI.deploy(book.address, 0);
@@ -78,26 +85,35 @@ describe("Miner", function () {
     await snapshot.revert();
   });
 
-  async function makeTestData(length?: number, nonce?: Buffer) {
-    if (length === undefined) {
-      length = 16384;
-    }
-    if (nonce === undefined) {
-      nonce = hexToBuffer(await keccak("nonce", 256));
-    }
+  async function makeTestData({ length, flow, nonceSeed, shardMask, shardId }: { length?: number, flow?: MockMerkle, nonceSeed?: number, shardMask?: bigint, shardId?: bigint }) {
+    const nonce = hexToBuffer(await keccak(nonceSeed?.toString() || "nonce", 256));
 
     const sealOffset = 11;
 
-    const tree = await new MockMerkle(await genLeaves(length - 1)).build();
+    const tree = flow || await new MockMerkle(await genLeaves((length || 16384) - 1)).build();
+    const range: RecallRangeStruct = {
+      startPosition: 0,
+      mineLength: tree.length(),
+      shardMask: shardMask || (BigInt(2) ** BigInt(64) - BigInt(1)),
+      shardId: shardId || BigInt(0),
+    };
+
+    const recallDigest = hexToBuffer(await keccak256(
+      abiCoder.encode(
+        ["uint256", "uint256", "uint256", "uint256"],
+        [range.startPosition, range.mineLength, range.shardId, range.shardMask])
+    )
+    );
     const context: MineContextStruct = await makeContextDigest(tree);
-    const { scratchPad, chunkOffset } = await makeScratchPad(
+    const { scratchPad, chunkOffset, padSeed } = await makeScratchPad(
       minerId,
       nonce,
       context.digest,
-      0,
+      recallDigest,
       tree.length()
     );
-    const recallPosition = chunkOffset * 1024 + sealOffset * 16;
+    const realChunkOffset = BigInt(chunkOffset) & range.shardMask | range.shardId
+    const recallPosition = Number(realChunkOffset) * 1024 + sealOffset * 16;
     const unsealedData = await tree.getUnsealedData(recallPosition);
 
     const sealedContextDigest = hexToBuffer(await keccak("44", 256));
@@ -112,8 +128,7 @@ describe("Miner", function () {
       contextDigest: context.digest,
       nonce,
       minerId,
-      startPosition: 0,
-      mineLength: tree.length(),
+      range,
       recallPosition,
       sealOffset,
       sealedContextDigest,
@@ -127,12 +142,8 @@ describe("Miner", function () {
       await blake2b(
         Buffer.concat([
           numToU256(answer.sealOffset),
-          minerId,
-          nonce,
-          context.digest,
-          numToU256(0),
-          numToU256(tree.length()),
-          Buffer.from(Array(64).fill(0)),
+          padSeed,
+          Buffer.from(Array(32).fill(0)),
           Buffer.concat(mixedData),
         ])
       )
@@ -142,7 +153,7 @@ describe("Miner", function () {
   }
 
   it("check valid submission", async () => {
-    let { context, answer, tree, unsealedData, quality } = await makeTestData();
+    let { context, answer, tree, unsealedData, quality } = await makeTestData({});
 
     expect(await mineContract.unseal(answer)).to.deep.equal(
       unsealedData.map((x) => "0x" + x.toString("hex"))
@@ -160,17 +171,74 @@ describe("Miner", function () {
       .withArgs(answer.sealedContextDigest)
       .returns({ start: 0, end: tree.length() });
 
-    await mockFlow.mock.getContext.withArgs().returns(context);
-    await mockFlow.mock.makeContext.withArgs().returns();
+    await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
 
     await mineContract.submit(answer);
   });
 
-  it("check valid/invalid epoch range", async () => {
-    let { context, answer } = await makeTestData();
+  it("sharded info test", async () => {
+    const flow = await new MockMerkle(await genLeaves(16384 - 1)).build();
+    for(let i=0; i<32; i++) {
+      let { context, answer, tree, unsealedData, quality } = await makeTestData({ 
+        shardMask: BigInt(2) ** BigInt(64) - BigInt(8), shardId: BigInt(3), nonceSeed: i, flow
+      });
+      const q = hexToBuffer(quality.slice(0, 2))[0];
+      if (q >= 0x80) {
+        break;
+      }
 
-    await mockFlow.mock.getContext.withArgs().returns(context);
-    await mockFlow.mock.makeContext.withArgs().returns();
+      expect(await mineContract.unseal(answer)).to.deep.equal(
+        unsealedData.map((x) => "0x" + x.toString("hex"))
+      );
+
+      expect(
+        hexToBuffer(await mineContract.recoverMerkleRoot(answer, unsealedData))
+      ).to.deep.equal(tree.root());
+
+      expect(hexToBuffer(await mineContract.pora(answer))).to.deep.equal(
+        hexToBuffer(quality.slice(0, 64))
+      );
+
+      await mockFlow.mock.getEpochRange
+        .withArgs(answer.sealedContextDigest)
+        .returns({ start: 0, end: tree.length() });
+
+      await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
+
+      if (q < 0x20) {
+        await mineContract.submit(answer);
+        await snapshot.revert();
+      } else {
+        await expect(mineContract.submit(answer)).to.be.revertedWith("Do not reach target quality");
+      }
+    }
+  });
+
+  it("incorrect sharded info test", async () => {
+    const { context, answer } = await makeTestData({ 
+      shardMask: BigInt(2) ** BigInt(64) - BigInt(2), 
+      shardId: BigInt(3) 
+    });
+
+    await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
+      "Masked bits should be zero"
+    );
+  });
+
+  it("out of bound sharded info test", async () => {
+    const { answer } = await makeTestData({ 
+      shardMask: BigInt(2) ** BigInt(64) - BigInt(8), 
+      shardId: BigInt(7), length: 1024 * 5 
+    });
+    await expect(mineContract.pora(answer)).to.be.revertedWith(
+      "Recall position out of bound"
+    );
+  })
+
+  it("check valid/invalid epoch range", async () => {
+    const { context, answer } = await makeTestData({});
+
+    await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
 
     const localSnapshot = await new Snapshot().snapshot();
 
@@ -228,35 +296,34 @@ describe("Miner", function () {
     const GB = (1024 * 1024 * 1024) / 256;
     const KB = 1024 / 256;
 
-    let { context, answer, tree } = await makeTestData();
+    let { context, answer, tree } = await makeTestData({});
     context.flowLength = 10 * TB;
-    await mockFlow.mock.getContext.withArgs().returns(context);
-    await mockFlow.mock.makeContext.withArgs().returns();
+    await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
     await mockFlow.mock.getEpochRange
       .withArgs(answer.sealedContextDigest)
       .returns({ start: 0, end: context.flowLength });
 
-    answer.startPosition = 3 * TB;
-    answer.mineLength = 8 * TB;
+    answer.range.startPosition = 3 * TB;
+    answer.range.mineLength = 8 * TB;
     await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
       "Mining range overflow"
     );
 
-    answer.startPosition = 2 * TB - GB;
+    answer.range.startPosition = 2 * TB - GB;
     await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
       "Start position is not aligned"
     );
 
-    answer.startPosition = 2 * TB;
-    answer.mineLength = 8 * TB - 8 * GB;
+    answer.range.startPosition = 2 * TB;
+    answer.range.mineLength = 8 * TB - 8 * GB;
     await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
       "Mining range too short"
     );
 
-    answer.mineLength = 8 * TB;
+    answer.range.mineLength = 8 * TB;
     await mineContract.basicCheck(answer, context);
 
-    answer.startPosition = 8 * GB;
+    answer.range.startPosition = 8 * GB;
     await mineContract.basicCheck(answer, context);
 
     context.flowLength = 8 * TB - 1;
@@ -264,12 +331,69 @@ describe("Miner", function () {
       .withArgs(answer.sealedContextDigest)
       .returns({ start: 0, end: context.flowLength });
 
-    answer.startPosition = 0;
-    answer.mineLength = 8 * TB - 256 * KB;
+    answer.range.startPosition = 0;
+    answer.range.mineLength = 8 * TB - 256 * KB;
     await mineContract.basicCheck(answer, context);
 
-    answer.startPosition = 8 * GB;
-    answer.mineLength = 8 * TB - 16 * GB;
+    answer.range.startPosition = 8 * GB;
+    answer.range.mineLength = 8 * TB - 16 * GB;
+
+    await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
+      "Mining range too short"
+    );
+  });
+  it("Sharded mine range checks", async function () {
+    const TB = (1024 * 1024 * 1024 * 1024) / 256;
+    const GB = (1024 * 1024 * 1024) / 256;
+    const KB = 1024 / 256;
+
+    let { context, answer, tree } = await makeTestData({ shardMask: BigInt(2) ** BigInt(64) - BigInt(2), shardId: BigInt(1) });
+    context.flowLength = 20 * TB;
+    await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
+    await mockFlow.mock.getEpochRange
+      .withArgs(answer.sealedContextDigest)
+      .returns({ start: 0, end: context.flowLength });
+
+    answer.range.startPosition = 6 * TB;
+    answer.range.mineLength = 16 * TB;
+    await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
+      "Mining range overflow"
+    );
+
+    answer.range.startPosition = 4 * TB - GB;
+    await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
+      "Start position is not aligned"
+    );
+
+    answer.range.startPosition = 4 * TB;
+    answer.range.mineLength = 16 * TB - 8 * GB;
+    await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
+      "Mining range too short"
+    );
+
+    answer.range.startPosition = 4 * TB;
+    answer.range.mineLength = 16 * TB - 8 * GB;
+    await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
+      "Mining range too short"
+    );
+
+    answer.range.mineLength = 16 * TB;
+    await mineContract.basicCheck(answer, context);
+
+    answer.range.startPosition = 16 * GB;
+    await mineContract.basicCheck(answer, context);
+
+    context.flowLength = 16 * TB - 1;
+    await mockFlow.mock.getEpochRange
+      .withArgs(answer.sealedContextDigest)
+      .returns({ start: 0, end: context.flowLength });
+
+    answer.range.startPosition = 0;
+    answer.range.mineLength = 16 * TB - 256 * KB;
+    await mineContract.basicCheck(answer, context);
+
+    answer.range.startPosition = 8 * GB;
+    answer.range.mineLength = 16 * TB - 16 * GB;
 
     await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
       "Mining range too short"
@@ -348,9 +472,9 @@ async function makeScratchPad(
   minerId: Buffer,
   nonce: Buffer,
   contextDigest: Buffer,
-  startPosition: number,
-  length: number
-): Promise<{ scratchPad: Buffer[]; chunkOffset: number }> {
+  recallDigest: Buffer,
+  length: number,
+): Promise<{ scratchPad: Buffer[]; chunkOffset: number, padSeed: Buffer }> {
   let answer = Array(1024);
 
   let input = hexToBuffer(
@@ -359,11 +483,12 @@ async function makeScratchPad(
         minerId,
         nonce,
         contextDigest,
-        numToU256(startPosition),
-        numToU256(length),
+        recallDigest,
       ])
     )
   );
+
+  const padSeed = input;
 
   for (let i = 0; i < 1024; i++) {
     answer[i] = hexToBuffer(await blake2b(input));
@@ -379,7 +504,7 @@ async function makeScratchPad(
     .toNumber();
   const scratchPad = answer;
 
-  return { scratchPad, chunkOffset };
+  return { scratchPad, chunkOffset, padSeed };
 }
 
 function mixData(

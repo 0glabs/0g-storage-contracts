@@ -39,6 +39,17 @@ library Blake2b {
         h = blake2bF(h, input[0], input[1], input[2], bytes32(0x0), 96, true);
     }
 
+    function blake2b(bytes32[4] memory input)
+        internal
+        view
+        returns (bytes32[2] memory h)
+    {
+        h[0] = BLAKE2B_INIT_STATE0;
+        h[1] = BLAKE2B_INIT_STATE1;
+
+        h = blake2bF(h, input[0], input[1], input[2], input[3], 128, true);
+    }
+
     function blake2b(bytes32[5] memory input)
         internal
         view

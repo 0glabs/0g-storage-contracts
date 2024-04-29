@@ -63,6 +63,8 @@ interface IFlow {
 
     function makeContext() external;
 
+    function makeContextWithResult() external returns (MineContext memory);
+
     function getContext() external view returns (MineContext memory);
 
     function getEpochRange(bytes32 digest)
