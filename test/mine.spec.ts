@@ -28,6 +28,8 @@ function numToU256(num: number): Buffer {
 type RecallRangeStruct = {
   startPosition: number;
   mineLength: number;
+  shardId: bigint;
+  shardMask: bigint;
 };
 
 type PoraAnswerStruct = {
@@ -51,7 +53,7 @@ type MineContextStruct = {
   digest: Buffer;
 };
 
-describe.only("Miner", function () {
+describe("Miner", function () {
   let mockFlow: MockContract;
   let mockCashier: MockContract;
   let mockReward: MockContract;
@@ -61,14 +63,14 @@ describe.only("Miner", function () {
 
   before(async () => {
     const [owner] = await ethers.getSigners();
-    
+
     mockFlow = await deployMock(owner, "Flow");
     mockCashier = await deployMock(owner, "Cashier");
     mockReward = await deployMock(owner, "ChunkDecayReward");
 
     await mockReward.mock.claimMineReward.returns();
 
-    let book = await deployAddressBook({flow: mockFlow.address, market: mockCashier.address})
+    let book = await deployAddressBook({ flow: mockFlow.address, market: mockCashier.address })
 
     let mineABI = await ethers.getContractFactory("PoraMineTest");
     mineContract = await mineABI.deploy(book.address, 0);
@@ -83,27 +85,38 @@ describe.only("Miner", function () {
     await snapshot.revert();
   });
 
-  async function makeTestData(length?: number, nonce?: Buffer) {
-    if (length === undefined) {
-      length = 16384;
-    }
-    if (nonce === undefined) {
-      nonce = hexToBuffer(await keccak("nonce", 256));
-    }
+  async function makeTestData({ length, nonce, shardMask, shardId }: { length?: number, nonce?: Buffer, shardMask?: bigint, shardId?: bigint }) {
+    const defaultNonce = hexToBuffer(await keccak("nonce", 256));
 
     const sealOffset = 11;
 
-    const tree = await new MockMerkle(await genLeaves(length - 1)).build();
-    const recallDigest = hexToBuffer(await keccak256(abiCoder.encode(["uint256", "uint256"], [0, tree.length()])));
+    const leaves = await genLeaves((length || 16384) - 1);
+    const tree = await new MockMerkle(leaves).build();
+    const range: RecallRangeStruct = {
+      startPosition: 0,
+      mineLength: tree.length(),
+      shardMask: shardMask || (BigInt(2) ** BigInt(64) - BigInt(1)),
+      shardId: shardId || BigInt(0),
+    };
+
+    const nonce_ = nonce || defaultNonce;
+
+    const recallDigest = hexToBuffer(await keccak256(
+      abiCoder.encode(
+        ["uint256", "uint256", "uint256", "uint256"],
+        [range.startPosition, range.mineLength, range.shardId, range.shardMask])
+    )
+    );
     const context: MineContextStruct = await makeContextDigest(tree);
     const { scratchPad, chunkOffset, padSeed } = await makeScratchPad(
       minerId,
-      nonce,
+      nonce_,
       context.digest,
       recallDigest,
       tree.length()
     );
-    const recallPosition = chunkOffset * 1024 + sealOffset * 16;
+    const realChunkOffset = BigInt(chunkOffset) & range.shardMask | range.shardId
+    const recallPosition = Number(realChunkOffset) * 1024 + sealOffset * 16;
     const unsealedData = await tree.getUnsealedData(recallPosition);
 
     const sealedContextDigest = hexToBuffer(await keccak("44", 256));
@@ -114,14 +127,9 @@ describe.only("Miner", function () {
       recallPosition
     );
 
-    const range: RecallRangeStruct = {
-      startPosition: 0,
-      mineLength: tree.length(),
-    };
-
     let answer: PoraAnswerStruct = {
       contextDigest: context.digest,
-      nonce,
+      nonce: nonce_,
       minerId,
       range,
       recallPosition,
@@ -148,7 +156,7 @@ describe.only("Miner", function () {
   }
 
   it("check valid submission", async () => {
-    let { context, answer, tree, unsealedData, quality } = await makeTestData();
+    let { context, answer, tree, unsealedData, quality } = await makeTestData({});
 
     expect(await mineContract.unseal(answer)).to.deep.equal(
       unsealedData.map((x) => "0x" + x.toString("hex"))
@@ -171,8 +179,53 @@ describe.only("Miner", function () {
     await mineContract.submit(answer);
   });
 
+  it("sharded info test", async () => {
+    let { context, answer, tree, unsealedData, quality } = await makeTestData({ shardMask: BigInt(2) ** BigInt(64) - BigInt(256), shardId: BigInt(3) });
+
+    expect(await mineContract.unseal(answer)).to.deep.equal(
+      unsealedData.map((x) => "0x" + x.toString("hex"))
+    );
+
+    expect(
+      hexToBuffer(await mineContract.recoverMerkleRoot(answer, unsealedData))
+    ).to.deep.equal(tree.root());
+
+    expect(hexToBuffer(await mineContract.pora(answer))).to.deep.equal(
+      hexToBuffer(quality.slice(0, 64))
+    );
+
+    await mockFlow.mock.getEpochRange
+      .withArgs(answer.sealedContextDigest)
+      .returns({ start: 0, end: tree.length() });
+
+    await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
+
+    await mineContract.submit(answer);
+  });
+
+  it("incorrect sharded info test", async () => {
+    const { context, answer } = await makeTestData({ 
+      shardMask: BigInt(2) ** BigInt(64) - BigInt(2), 
+      shardId: BigInt(3) 
+    });
+
+    await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
+      "Masked bits should be zero"
+    );
+  });
+
+  it("out of bound sharded info test", async () => {
+    const { answer } = await makeTestData({ 
+      shardMask: BigInt(2) ** BigInt(64) - BigInt(8), 
+      shardId: BigInt(7), length: 1024 * 5 
+    });
+    await expect(mineContract.pora(answer)).to.be.revertedWith(
+      "Recall position out of bound"
+    );
+  })
+
   it("check valid/invalid epoch range", async () => {
-    let { context, answer } = await makeTestData();
+    const { context, answer } = await makeTestData({});
 
     await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
 
@@ -232,7 +285,7 @@ describe.only("Miner", function () {
     const GB = (1024 * 1024 * 1024) / 256;
     const KB = 1024 / 256;
 
-    let { context, answer, tree } = await makeTestData();
+    let { context, answer, tree } = await makeTestData({});
     context.flowLength = 10 * TB;
     await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
     await mockFlow.mock.getEpochRange
@@ -273,6 +326,63 @@ describe.only("Miner", function () {
 
     answer.range.startPosition = 8 * GB;
     answer.range.mineLength = 8 * TB - 16 * GB;
+
+    await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
+      "Mining range too short"
+    );
+  });
+  it("Sharded mine range checks", async function () {
+    const TB = (1024 * 1024 * 1024 * 1024) / 256;
+    const GB = (1024 * 1024 * 1024) / 256;
+    const KB = 1024 / 256;
+
+    let { context, answer, tree } = await makeTestData({ shardMask: BigInt(2) ** BigInt(64) - BigInt(2), shardId: BigInt(1) });
+    context.flowLength = 20 * TB;
+    await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
+    await mockFlow.mock.getEpochRange
+      .withArgs(answer.sealedContextDigest)
+      .returns({ start: 0, end: context.flowLength });
+
+    answer.range.startPosition = 6 * TB;
+    answer.range.mineLength = 16 * TB;
+    await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
+      "Mining range overflow"
+    );
+
+    answer.range.startPosition = 4 * TB - GB;
+    await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
+      "Start position is not aligned"
+    );
+
+    answer.range.startPosition = 4 * TB;
+    answer.range.mineLength = 16 * TB - 8 * GB;
+    await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
+      "Mining range too short"
+    );
+
+    answer.range.startPosition = 4 * TB;
+    answer.range.mineLength = 16 * TB - 8 * GB;
+    await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
+      "Mining range too short"
+    );
+
+    answer.range.mineLength = 16 * TB;
+    await mineContract.basicCheck(answer, context);
+
+    answer.range.startPosition = 16 * GB;
+    await mineContract.basicCheck(answer, context);
+
+    context.flowLength = 16 * TB - 1;
+    await mockFlow.mock.getEpochRange
+      .withArgs(answer.sealedContextDigest)
+      .returns({ start: 0, end: context.flowLength });
+
+    answer.range.startPosition = 0;
+    answer.range.mineLength = 16 * TB - 256 * KB;
+    await mineContract.basicCheck(answer, context);
+
+    answer.range.startPosition = 8 * GB;
+    answer.range.mineLength = 16 * TB - 16 * GB;
 
     await expect(mineContract.basicCheck(answer, context)).to.be.revertedWith(
       "Mining range too short"
