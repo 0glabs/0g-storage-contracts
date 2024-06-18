@@ -10,18 +10,11 @@ contract ChunkDecayReward is ChunkRewardBase {
     using RewardLibrary for Reward;
     uint16 public immutable annualMilliDecayRate;
 
-    constructor(address book_, uint16 annualMilliDecayRate_)
-        ChunkRewardBase(book_)
-    {
+    constructor(address book_, uint16 annualMilliDecayRate_) ChunkRewardBase(book_) {
         annualMilliDecayRate = annualMilliDecayRate_;
     }
 
-    function _releasedReward(Reward memory reward)
-        internal
-        view
-        override
-        returns (uint256)
-    {
+    function _releasedReward(Reward memory reward) internal view override returns (uint) {
         return reward.expDecayReward(annualMilliDecayRate);
     }
 }

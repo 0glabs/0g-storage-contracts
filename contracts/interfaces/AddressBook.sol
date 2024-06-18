@@ -6,24 +6,13 @@ import "../interfaces/IReward.sol";
 import "../interfaces/IFlow.sol";
 
 contract DummyMarket is IMarket {
-    function chargeFee(
-        uint256 beforeLength,
-        uint256 uploadSectors,
-        uint256 paddingSectors
-    ) external {}
+    function chargeFee(uint beforeLength, uint uploadSectors, uint paddingSectors) external {}
 }
 
 contract DummyReward is IReward {
-    function fillReward(uint256 beforeLength, uint256 uploadSectors)
-        external
-        payable
-    {}
+    function fillReward(uint beforeLength, uint uploadSectors) external payable {}
 
-    function claimMineReward(
-        uint256 pricingIndex,
-        address payable beneficiary,
-        bytes32 minerId
-    ) external {}
+    function claimMineReward(uint pricingIndex, address payable beneficiary, bytes32 minerId) external {}
 }
 
 contract AddressBook {
@@ -32,12 +21,7 @@ contract AddressBook {
     IFlow public immutable flow;
     address public immutable mine;
 
-    constructor(
-        address flow_,
-        address market_,
-        address reward_,
-        address mine_
-    ) {
+    constructor(address flow_, address market_, address reward_, address mine_) {
         flow = IFlow(flow_);
         if (market_ == address(0)) {
             market_ = address(new DummyMarket());

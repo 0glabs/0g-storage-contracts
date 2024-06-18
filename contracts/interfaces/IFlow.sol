@@ -14,10 +14,10 @@ struct EpochRangeWithContextDigest {
 }
 
 struct MineContext {
-    uint256 epoch;
-    uint256 mineStart;
+    uint epoch;
+    uint mineStart;
     bytes32 flowRoot;
-    uint256 flowLength;
+    uint flowLength;
     bytes32 blockDigest;
     bytes32 digest;
 }
@@ -26,40 +26,29 @@ interface IFlow {
     event Submit(
         address indexed sender,
         bytes32 indexed identity,
-        uint256 submissionIndex,
-        uint256 startPos,
-        uint256 length,
+        uint submissionIndex,
+        uint startPos,
+        uint length,
         Submission submission
     );
 
     event NewEpoch(
         address indexed sender,
-        uint256 indexed index,
+        uint indexed index,
         bytes32 startMerkleRoot,
-        uint256 submissionIndex,
-        uint256 flowLength,
+        uint submissionIndex,
+        uint flowLength,
         bytes32 context
     );
 
-    function batchSubmit(Submission[] memory submissions)
+    function batchSubmit(
+        Submission[] memory submissions
+    )
         external
         payable
-        returns (
-            uint256[] memory indexes,
-            bytes32[] memory digests,
-            uint256[] memory startIndexes,
-            uint256[] memory lengths
-        );
+        returns (uint[] memory indexes, bytes32[] memory digests, uint[] memory startIndexes, uint[] memory lengths);
 
-    function submit(Submission memory submission)
-        external
-        payable
-        returns (
-            uint256,
-            bytes32,
-            uint256,
-            uint256
-        );
+    function submit(Submission memory submission) external payable returns (uint, bytes32, uint, uint);
 
     function makeContext() external;
 
@@ -67,10 +56,7 @@ interface IFlow {
 
     function getContext() external view returns (MineContext memory);
 
-    function getEpochRange(bytes32 digest)
-        external
-        view
-        returns (EpochRange memory);
+    function getEpochRange(bytes32 digest) external view returns (EpochRange memory);
 
-    function numSubmissions() external view returns (uint256);
+    function numSubmissions() external view returns (uint);
 }

@@ -1,6 +1,10 @@
+.pnp.*
+.yarn
+.yarnrc
 out/
 cache/
 node_modules/
+deployments/
 .env
 .idea/
 .vscode/
@@ -8,7 +12,8 @@ artifacts/
 deploy/
 typechain-types/
 coverage/
+build/
 coverage.json
-
-yarn.lock
+typechain-types
+abis
 yarn-error.log

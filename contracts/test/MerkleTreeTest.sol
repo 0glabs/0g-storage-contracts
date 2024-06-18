@@ -5,10 +5,7 @@ import "../dataFlow/IncrementalMerkleTree.sol";
 contract MerkleTreeTest is IncrementalMerkleTree {
     constructor() IncrementalMerkleTree(bytes32(0x0)) {}
 
-    function insertNode(bytes32 nodeRoot, uint256 height)
-        external
-        returns (uint256)
-    {
+    function insertNode(bytes32 nodeRoot, uint height) external returns (uint) {
         return _insertNode(nodeRoot, height);
     }
 }

@@ -10,38 +10,38 @@ import "@openzeppelin/contracts/utils/Context.sol";
 
 contract OnePoolReward is IReward, Context {
     AddressBook public immutable book;
-    uint256 public immutable lifetimeInSeconds;
+    uint public immutable lifetimeInSeconds;
     TimeoutItem[] public timeoutRecords;
-    uint256 public timeoutHead;
+    uint public timeoutHead;
 
-    uint256 public firstValidChunk; // Inclusive
-    uint256 public lastValidChunk; // Exclusive
+    uint public firstValidChunk; // Inclusive
+    uint public lastValidChunk; // Exclusive
 
-    uint256 public accumulatedReward;
-    uint256 public claimedReward;
-    uint256 public lastUpdateTimestamp;
+    uint public accumulatedReward;
+    uint public claimedReward;
+    uint public lastUpdateTimestamp;
 
-    uint256 public nextChunkDonation;
-    uint256 public activeDonation;
+    uint public nextChunkDonation;
+    uint public activeDonation;
 
     struct TimeoutItem {
         uint64 numPriceChunks;
         uint64 timeoutTimestamp;
-        uint256 donation;
+        uint donation;
     }
 
-    constructor(address book_, uint256 lifetimeMonthes) {
+    constructor(address book_, uint lifetimeMonthes) {
         book = AddressBook(book_);
         lifetimeInSeconds = lifetimeMonthes * SECONDS_PER_MONTH;
         lastUpdateTimestamp = block.timestamp;
     }
 
-    function _updateAccumulatedRewardTo(uint256 timestamp) internal {
+    function _updateAccumulatedRewardTo(uint timestamp) internal {
         if (timestamp <= lastUpdateTimestamp) {
             return;
         }
 
-        uint256 reward = ((timestamp - lastUpdateTimestamp) *
+        uint reward = ((timestamp - lastUpdateTimestamp) *
             (lastValidChunk - firstValidChunk) *
             BYTES_PER_PRICE *
             ANNUAL_ZGS_TOKENS_PER_GB *
@@ -49,15 +49,14 @@ contract OnePoolReward is IReward, Context {
             GB /
             SECONDS_PER_YEAR;
 
-        uint256 bonus = (activeDonation * (timestamp - lastUpdateTimestamp)) /
-            lifetimeInSeconds;
+        uint bonus = (activeDonation * (timestamp - lastUpdateTimestamp)) / lifetimeInSeconds;
 
         accumulatedReward += reward + bonus;
         lastUpdateTimestamp = timestamp;
     }
 
     function refresh() public {
-        uint256 length = timeoutRecords.length;
+        uint length = timeoutRecords.length;
 
         if (length == 0) {
             lastUpdateTimestamp = block.timestamp;
@@ -65,21 +64,13 @@ contract OnePoolReward is IReward, Context {
             return;
         }
 
-        while (
-            timeoutRecords[timeoutHead].timeoutTimestamp <= block.timestamp
-        ) {
-            _updateAccumulatedRewardTo(
-                timeoutRecords[timeoutHead].timeoutTimestamp
-            );
+        while (timeoutRecords[timeoutHead].timeoutTimestamp <= block.timestamp) {
+            _updateAccumulatedRewardTo(timeoutRecords[timeoutHead].timeoutTimestamp);
             firstValidChunk += timeoutRecords[timeoutHead].numPriceChunks;
             activeDonation -= timeoutRecords[timeoutHead].donation;
 
             // Free storage
-            timeoutRecords[timeoutHead] = TimeoutItem({
-                numPriceChunks: 0,
-                timeoutTimestamp: 0,
-                donation: 0
-            });
+            timeoutRecords[timeoutHead] = TimeoutItem({numPriceChunks: 0, timeoutTimestamp: 0, donation: 0});
             timeoutHead += 1;
 
             if (timeoutHead == length) {
@@ -90,21 +81,15 @@ contract OnePoolReward is IReward, Context {
         _updateAccumulatedRewardTo(block.timestamp);
     }
 
-    function fillReward(uint256 beforeLength, uint256 rewardSectors)
-        external
-        payable
-    {
-        require(
-            _msgSender() == address(book.market()),
-            "Sender does not have permission"
-        );
+    function fillReward(uint beforeLength, uint rewardSectors) external payable {
+        require(_msgSender() == address(book.market()), "Sender does not have permission");
 
         refresh();
 
-        uint256 afterLength = beforeLength + rewardSectors;
+        uint afterLength = beforeLength + rewardSectors;
 
-        uint256 beforePriceChunk = beforeLength / SECTORS_PER_PRICE;
-        uint256 afterPriceChunk = afterLength / SECTORS_PER_PRICE;
+        uint beforePriceChunk = beforeLength / SECTORS_PER_PRICE;
+        uint afterPriceChunk = afterLength / SECTORS_PER_PRICE;
 
         if (afterPriceChunk > beforePriceChunk) {
             TimeoutItem memory item = TimeoutItem({
@@ -121,15 +106,8 @@ contract OnePoolReward is IReward, Context {
         }
     }
 
-    function claimMineReward(
-        uint256 pricingIndex,
-        address payable beneficiary,
-        bytes32
-    ) external {
-        require(
-            _msgSender() == address(book.mine()),
-            "Sender does not have permission"
-        );
+    function claimMineReward(uint pricingIndex, address payable beneficiary, bytes32) external {
+        require(_msgSender() == address(book.mine()), "Sender does not have permission");
 
         if (pricingIndex < firstValidChunk) {
             // The target price chunk is not open for mine
@@ -138,7 +116,7 @@ contract OnePoolReward is IReward, Context {
 
         refresh();
 
-        uint256 claimable = accumulatedReward - claimedReward;
+        uint claimable = accumulatedReward - claimedReward;
         if (claimable > address(this).balance) {
             claimable = address(this).balance;
         }

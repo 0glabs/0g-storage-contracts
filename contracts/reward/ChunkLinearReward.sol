@@ -16,12 +16,7 @@ contract ChunkLinearReward is ChunkRewardBase {
         releaseMonths = releaseMonths_;
     }
 
-    function _releasedReward(Reward memory reward)
-        internal
-        view
-        override
-        returns (uint256)
-    {
+    function _releasedReward(Reward memory reward) internal view override returns (uint) {
         return reward.linearDecayReward(releaseMonths);
     }
 }
