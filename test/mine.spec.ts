@@ -6,10 +6,10 @@ import { deployAddressBook, deployMock } from "./utils/deploy";
 import env = require("hardhat");
 const { waffle } = env;
 
+import { AbiCoder, keccak256 } from "ethers";
 import { PoraMine, PoraMineTest } from "../typechain-types";
 import { genLeafData, genLeaves, MockMerkle } from "./utils/mockMerkleTree";
 import { Snapshot } from "./utils/snapshot";
-import { AbiCoder, keccak256 } from "ethers";
 
 const abiCoder = new AbiCoder();
 
@@ -446,7 +446,7 @@ async function makeScratchPad(
 
     const chunks = Math.floor(length / 1024);
 
-    const chunkOffset = Number(BigInt("0x" + (await keccak(answer[answer.length - 1], 256))) % BigInt(chunks))
+    const chunkOffset = Number(BigInt("0x" + (await keccak(answer[answer.length - 1], 256))) % BigInt(chunks));
     const scratchPad = answer;
 
     return { scratchPad, chunkOffset, padSeed };

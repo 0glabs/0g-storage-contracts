@@ -6,13 +6,14 @@ import "./Reward.sol";
 import "./ChunkRewardBase.sol";
 import "../utils/ZgsSpec.sol";
 import "../utils/MarketSpec.sol";
+import "../utils/Initializable.sol";
 
-contract ChunkLinearReward is ChunkRewardBase {
+contract ChunkLinearReward is Initializable, ChunkRewardBase {
     using RewardLibrary for Reward;
 
     uint16 public immutable releaseMonths;
 
-    constructor(address book_, uint16 releaseMonths_) ChunkRewardBase(book_) {
+    constructor(uint16 releaseMonths_) {
         releaseMonths = releaseMonths_;
     }
 

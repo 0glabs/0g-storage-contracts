@@ -2,22 +2,28 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "../interfaces/IMarket.sol";
-import "../interfaces/AddressBook.sol";
+import "../interfaces/IReward.sol";
 import "../utils/MarketSpec.sol";
+import "../utils/Initializable.sol";
 
 import "@openzeppelin/contracts/utils/Context.sol";
 
-contract FixedPrice is IMarket, Context {
-    AddressBook public immutable book;
-    uint public immutable pricePerSector;
+contract FixedPrice is IMarket, Context, Initializable {
+    // reserved storage slots for base contract upgrade in future
+    uint[50] private __gap;
 
-    constructor(address book_, uint lifetimeMonthes) {
-        book = AddressBook(book_);
+    uint public pricePerSector;
+    address public flow;
+    address public reward;
+
+    function initialize(uint lifetimeMonthes, address flow_, address reward_) public onlyInitializeOnce {
         pricePerSector = lifetimeMonthes * MONTH_ZGS_UNITS_PER_SECTOR;
+        flow = flow_;
+        reward = reward_;
     }
 
     function chargeFee(uint beforeLength, uint uploadSectors, uint paddingSectors) external {
-        require(_msgSender() == address(book.flow()), "Sender does not have permission");
+        require(_msgSender() == flow, "Sender does not have permission");
 
         uint totalSectors = uploadSectors + paddingSectors;
         uint baseFee = pricePerSector * uploadSectors;
@@ -28,10 +34,10 @@ contract FixedPrice is IMarket, Context {
         uint uploadPart = baseFee - paddingPart;
 
         if (paddingSectors > 0) {
-            book.reward().fillReward{value: paddingPart}(beforeLength, paddingSectors);
+            IReward(reward).fillReward{value: paddingPart}(beforeLength, paddingSectors);
         }
 
-        book.reward().fillReward{value: bonus + uploadPart}(beforeLength + paddingSectors, uploadSectors);
+        IReward(reward).fillReward{value: bonus + uploadPart}(beforeLength + paddingSectors, uploadSectors);
     }
 
     receive() external payable {}

@@ -9,14 +9,8 @@ contract CashierTest is Cashier {
     MockHackToken public immutable zgsToken;
     uint public flowLength;
 
-    constructor(
-        address book,
-        address uploadToken,
-        address stake,
-        address zgsToken_
-    ) payable Cashier(book, uploadToken, stake) {
+    constructor(address zgsToken_) payable {
         zgsToken = MockHackToken(zgsToken_);
-        flowLength = 1;
     }
 
     function updateTotalSubmission(uint sectors) external {

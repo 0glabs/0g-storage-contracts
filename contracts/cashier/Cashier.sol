@@ -7,14 +7,17 @@ import "../utils/ZgsSpec.sol";
 import "../utils/Exponent.sol";
 import "../utils/OnlySender.sol";
 import "../utils/TimeInterval.sol";
+import "../utils/Initializable.sol";
 import "../token/ISafeERC20.sol";
 import "../interfaces/IMarket.sol";
 import "../interfaces/IReward.sol";
-import "../interfaces/AddressBook.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract Cashier is IMarket, OnlySender, TimeInterval {
+contract Cashier is IMarket, OnlySender, TimeInterval, Initializable {
+    // reserved storage slots for base contract upgrade in future
+    uint[50] private __gap;
+
     int public gauge;
     uint public drippingRate;
     uint public lastUpdate;
@@ -25,18 +28,22 @@ contract Cashier is IMarket, OnlySender, TimeInterval {
     uint private constant BASIC_PRICE = 1000;
     uint private constant UPLOAD_TOKEN_PER_SECTOR = 10 ** 18;
 
-    IReward public immutable reward;
-    IUploadToken public immutable uploadToken;
-    address public immutable flow;
-    address public immutable mine;
-    address public immutable stake;
+    IReward public reward;
+    IUploadToken public uploadToken;
+    address public flow;
+    address public mine;
+    address public stake;
 
-    constructor(address book_, address uploadToken_, address stake_) {
-        AddressBook book = AddressBook(book_);
-        flow = address(book.flow());
-        mine = book.mine();
-        reward = book.reward();
-
+    function initialize(
+        address flow_,
+        address mine_,
+        address reward_,
+        address uploadToken_,
+        address stake_
+    ) public virtual onlyInitializeOnce {
+        flow = flow_;
+        mine = mine_;
+        reward = IReward(reward_);
         uploadToken = IUploadToken(uploadToken_);
         stake = stake_;
 

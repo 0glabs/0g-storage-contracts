@@ -20,6 +20,8 @@ const userConfig: HttpNetworkUserConfig = {
     accounts: [DEPLOYER_KEY ? DEPLOYER_KEY : DEFAULT_DEPLOYER],
 };
 
+import "./src/tasks/codesize";
+
 const config: HardhatUserConfig = {
     paths: {
         artifacts: "artifacts",

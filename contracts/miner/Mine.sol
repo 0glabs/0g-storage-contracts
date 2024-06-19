@@ -9,9 +9,10 @@ import "../utils/DigestHistory.sol";
 import "../utils/BitMask.sol";
 import "../utils/ZgsSpec.sol";
 import "../utils/Blake2b.sol";
+import "../utils/Initializable.sol";
 import "../interfaces/IMarket.sol";
 import "../interfaces/IFlow.sol";
-import "../interfaces/AddressBook.sol";
+import "../interfaces/IReward.sol";
 
 import "./RecallRange.sol";
 import "./MineLib.sol";
@@ -19,9 +20,10 @@ import "./MineLib.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract PoraMine {
+contract PoraMine is Initializable {
     using RecallRangeLib for RecallRange;
 
+    // immutables
     bytes32 private constant EMPTY_HASH = hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
 
     uint private constant DIFFICULTY_ADJUST_RATIO = 20;
@@ -37,9 +39,11 @@ contract PoraMine {
     bool public immutable dataProofEnabled;
     bool public immutable fixedQuality;
 
-    uint public adjustRatio;
+    // states
+    address public flow;
+    address public reward;
 
-    AddressBook public immutable book;
+    uint public adjustRatio;
 
     uint public lastMinedEpoch = 0;
     uint public targetQuality;
@@ -48,17 +52,20 @@ contract PoraMine {
     event NewMinerId(bytes32 indexed minerId, address indexed beneficiary);
     event UpdateMinerId(bytes32 indexed minerId, address indexed from, address indexed to);
 
-    constructor(address book_, uint initRate, uint adjustRatio_, uint settings) {
-        targetQuality = type(uint).max / initRate / 300;
-        adjustRatio = adjustRatio_;
+    constructor(uint settings) {
         sealDataEnabled = (settings & NO_DATA_SEAL == 0);
         dataProofEnabled = (settings & NO_DATA_PROOF == 0);
         fixedQuality = (settings & FIXED_QUALITY != 0);
+    }
+
+    function initialize(uint initRate, uint adjustRatio_, address flow_, address reward_) public onlyInitializeOnce {
+        targetQuality = type(uint).max / initRate / 300;
+        adjustRatio = adjustRatio_;
         if (fixedQuality) {
             targetQuality = type(uint).max;
         }
-
-        book = AddressBook(book_);
+        flow = flow_;
+        reward = reward_;
     }
 
     struct PoraAnswer {
@@ -79,7 +86,7 @@ contract PoraMine {
         address beneficiary = beneficiaries[answer.minerId];
         require(beneficiary != address(0), "MinerId does not registered");
 
-        MineContext memory context = book.flow().makeContextWithResult();
+        MineContext memory context = IFlow(flow).makeContextWithResult();
 
         // Step 2: basic check for submission
         basicCheck(answer, context);
@@ -107,7 +114,11 @@ contract PoraMine {
         }
 
         // Step 6: reward fee
-        book.reward().claimMineReward(answer.recallPosition / SECTORS_PER_PRICE, payable(beneficiary), answer.minerId);
+        IReward(reward).claimMineReward(
+            answer.recallPosition / SECTORS_PER_PRICE,
+            payable(beneficiary),
+            answer.minerId
+        );
 
         // Step 7: finish
         lastMinedEpoch = context.epoch;
@@ -124,7 +135,7 @@ contract PoraMine {
         answer.range.check(maxLength);
 
         // Check the sealing context is in the correct range.
-        EpochRange memory epochRange = book.flow().getEpochRange(answer.sealedContextDigest);
+        EpochRange memory epochRange = IFlow(flow).getEpochRange(answer.sealedContextDigest);
         uint recallEndPosition = answer.recallPosition + SECTORS_PER_SEAL;
         require(
             epochRange.start < recallEndPosition && epochRange.end >= recallEndPosition,

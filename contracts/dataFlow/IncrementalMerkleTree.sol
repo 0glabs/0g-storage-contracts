@@ -3,18 +3,27 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-contract IncrementalMerkleTree {
+import "../utils/Initializable.sol";
+
+contract IncrementalMerkleTree is Initializable {
     using SafeMath for uint;
+
+    // reserved storage slots for base contract upgrade in future
+    uint[50] private __gap;
 
     uint public currentLength;
     bytes32[] private openNodes;
     uint public unstagedHeight;
 
-    constructor(bytes32 identifier) {
+    function _initialize(bytes32 identifier) internal virtual {
         currentLength = 1;
         openNodes = new bytes32[](0);
         openNodes.push(identifier);
         unstagedHeight = 1;
+    }
+
+    function initialize(bytes32 identifier) public virtual onlyInitializeOnce {
+        _initialize(identifier);
     }
 
     function root() public view returns (bytes32) {

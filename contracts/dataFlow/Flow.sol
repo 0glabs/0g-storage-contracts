@@ -1,34 +1,40 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity >=0.8.0 <0.9.0;
 
-import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./IncrementalMerkleTree.sol";
 import "../utils/IDigestHistory.sol";
+import "../utils/Initializable.sol";
 import "../utils/DigestHistory.sol";
 import "../utils/ZgsSpec.sol";
 import "../interfaces/IMarket.sol";
 import "../interfaces/IReward.sol";
 import "../interfaces/IFlow.sol";
-import "../interfaces/AddressBook.sol";
+import "../security/PauseControl.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract Flow is Pausable, IFlow, IncrementalMerkleTree {
+contract Flow is IFlow, PauseControl, Initializable, IncrementalMerkleTree {
     using SubmissionLibrary for Submission;
     using SafeERC20 for IERC20;
 
+    // reserved storage slots for base contract upgrade in future
+    uint[50] private __gap;
+
+    // immutables
     uint private constant MAX_DEPTH = 64;
     uint private constant ROOT_AVAILABLE_WINDOW = 20;
 
     bytes32 private constant EMPTY_HASH = hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
 
-    AddressBook public immutable book;
     IDigestHistory public immutable rootHistory;
     uint public immutable blocksPerEpoch;
     uint public immutable firstBlock;
+
+    // states
+    address payable public market;
 
     uint public submissionIndex;
     uint public epoch;
@@ -40,13 +46,19 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
 
     error InvalidSubmission();
 
-    constructor(address book_, uint blocksPerEpoch_, uint deployDelay_) IncrementalMerkleTree(bytes32(0x0)) {
-        epoch = 0;
+    constructor(uint blocksPerEpoch_, uint deployDelay_) {
         blocksPerEpoch = blocksPerEpoch_;
         rootHistory = new DigestHistory(ROOT_AVAILABLE_WINDOW);
         firstBlock = block.number + deployDelay_;
+    }
 
-        book = AddressBook(book_);
+    function _initialize(address market_) internal virtual {
+        // initialize incremental merkle tree
+        IncrementalMerkleTree._initialize(bytes32(0x0));
+        // initialize flow
+        market = payable(market_);
+
+        epoch = 0;
 
         context = MineContext({
             epoch: 0,
@@ -56,6 +68,13 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
             blockDigest: EMPTY_HASH,
             digest: EMPTY_HASH
         });
+        // initialize admin and pause control
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(PAUSER_ROLE, msg.sender);
+    }
+
+    function initialize(address market_) public virtual onlyInitializeOnce {
+        _initialize(market_);
     }
 
     modifier launched() {
@@ -123,7 +142,7 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         uint paddedLength = startIndex - previousLength;
         uint chargedLength = currentLength - startIndex;
 
-        book.market().chargeFee(previousLength, chargedLength, paddedLength);
+        IMarket(market).chargeFee(previousLength, chargedLength, paddedLength);
     }
 
     function _makeContext() internal returns (bool) {

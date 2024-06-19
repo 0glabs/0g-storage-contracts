@@ -2,15 +2,20 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "../interfaces/IReward.sol";
-import "../interfaces/AddressBook.sol";
 import "../utils/ZgsSpec.sol";
 import "../utils/MarketSpec.sol";
+import "../utils/Initializable.sol";
 
 import "@openzeppelin/contracts/utils/Context.sol";
 
-contract OnePoolReward is IReward, Context {
-    AddressBook public immutable book;
+contract OnePoolReward is IReward, Context, Initializable {
+    // immutables
     uint public immutable lifetimeInSeconds;
+
+    // states
+    address public market;
+    address public mine;
+
     TimeoutItem[] public timeoutRecords;
     uint public timeoutHead;
 
@@ -30,10 +35,18 @@ contract OnePoolReward is IReward, Context {
         uint donation;
     }
 
-    constructor(address book_, uint lifetimeMonthes) {
-        book = AddressBook(book_);
+    constructor(uint lifetimeMonthes) {
         lifetimeInSeconds = lifetimeMonthes * SECONDS_PER_MONTH;
+    }
+
+    function _initialize(address market_, address mine_) internal {
+        market = market_;
+        mine = mine_;
         lastUpdateTimestamp = block.timestamp;
+    }
+
+    function initialize(address market_, address mine_) public onlyInitializeOnce {
+        _initialize(market_, mine_);
     }
 
     function _updateAccumulatedRewardTo(uint timestamp) internal {
@@ -82,7 +95,7 @@ contract OnePoolReward is IReward, Context {
     }
 
     function fillReward(uint beforeLength, uint rewardSectors) external payable {
-        require(_msgSender() == address(book.market()), "Sender does not have permission");
+        require(_msgSender() == market, "Sender does not have permission");
 
         refresh();
 
@@ -107,7 +120,7 @@ contract OnePoolReward is IReward, Context {
     }
 
     function claimMineReward(uint pricingIndex, address payable beneficiary, bytes32) external {
-        require(_msgSender() == address(book.mine()), "Sender does not have permission");
+        require(_msgSender() == mine, "Sender does not have permission");
 
         if (pricingIndex < firstValidChunk) {
             // The target price chunk is not open for mine
