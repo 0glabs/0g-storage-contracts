@@ -14,7 +14,7 @@ function assertPercision(actual: bigint, expected: bigint) {
 describe("Exponent hash", function () {
     let exponentContract: ExponentTest;
     before(async () => {
-        let exponentABI = await ethers.getContractFactory("ExponentTest");
+        const exponentABI = await ethers.getContractFactory("ExponentTest");
         exponentContract = await exponentABI.deploy();
     });
 

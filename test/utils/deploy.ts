@@ -5,7 +5,7 @@ import env = require("hardhat");
 const { waffle } = env;
 
 async function deployMock(owner: Signer, name: string): Promise<MockContract> {
-    let abi = (await env.artifacts.readArtifact(name)).abi;
+    const abi = (await env.artifacts.readArtifact(name)).abi;
     return await waffle.deployMockContract(owner, abi);
 }
 
@@ -15,11 +15,11 @@ async function deployAddressBook(params: {
     reward?: string;
     mine?: string;
 }): Promise<AddressBook> {
-    let abi = await env.ethers.getContractFactory("AddressBook");
-    let flow_ = params.flow;
-    let market_ = params.market || "0x0000000000000000000000000000000000000000";
-    let reward_ = params.reward || "0x0000000000000000000000000000000000000000";
-    let mine_ = params.mine || "0x0000000000000000000000000000000000000000";
+    const abi = await env.ethers.getContractFactory("AddressBook");
+    const flow_ = params.flow;
+    const market_ = params.market || "0x0000000000000000000000000000000000000000";
+    const reward_ = params.reward || "0x0000000000000000000000000000000000000000";
+    const mine_ = params.mine || "0x0000000000000000000000000000000000000000";
 
     return await abi.deploy(flow_, market_, reward_, mine_);
 }

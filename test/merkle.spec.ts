@@ -12,7 +12,7 @@ describe("Incremental merkle hash", function () {
     let merkle: MerkleTreeTest;
 
     beforeEach(async () => {
-        let merkleABI = await ethers.getContractFactory("MerkleTreeTest");
+        const merkleABI = await ethers.getContractFactory("MerkleTreeTest");
         merkle = await merkleABI.deploy();
     });
 
@@ -36,7 +36,7 @@ describe("Incremental merkle hash", function () {
     });
 
     it("padding element", async () => {
-        let allLeaves: Buffer[] = await genLeaves(3);
+        const allLeaves: Buffer[] = await genLeaves(3);
         allLeaves[0] = await genLeaf(0);
         const tree = await new MockMerkle(allLeaves).build();
 
@@ -51,7 +51,7 @@ describe("Incremental merkle hash", function () {
     });
 
     it("multiple insert with active commit", async () => {
-        let allLeaves: Buffer[] = await genLeaves(7);
+        const allLeaves: Buffer[] = await genLeaves(7);
         allLeaves[0] = await genLeaf(0);
 
         const tree = await new MockMerkle(allLeaves).build();
@@ -73,7 +73,7 @@ describe("Incremental merkle hash", function () {
     });
 
     it("multiple insert with lazy commit", async () => {
-        let allLeaves: Buffer[] = await genLeaves(7);
+        const allLeaves: Buffer[] = await genLeaves(7);
         allLeaves[0] = await genLeaf(0);
 
         const tree = await new MockMerkle(allLeaves).build();
@@ -92,7 +92,7 @@ describe("Incremental merkle hash", function () {
     });
 
     it("multiple insert with lazy commit and padding", async () => {
-        let allLeaves: Buffer[] = await genLeaves(12);
+        const allLeaves: Buffer[] = await genLeaves(12);
         for (let i = 0; i < 3; i++) {
             allLeaves[i] = await genLeaf(0);
         }
@@ -120,7 +120,7 @@ describe("Incremental merkle hash", function () {
         const submissions = 25;
         const range = 12;
         for (let i = 0; i < iterations; i++) {
-            let task = Array(submissions)
+            const task = Array(submissions)
                 .fill(0)
                 .map(() => {
                     return Math.floor(Math.random() * range);
@@ -133,9 +133,9 @@ describe("Incremental merkle hash", function () {
         const iterations = 100;
         const submissions = 25;
         const range = 12;
-        let tasks = [];
+        const tasks = [];
         for (let i = 0; i < iterations; i++) {
-            let task = Array(submissions)
+            const task = Array(submissions)
                 .fill(0)
                 .map(() => {
                     return Math.floor(Math.random() * range);
@@ -148,9 +148,9 @@ describe("Incremental merkle hash", function () {
 
 async function buildLeafFromHeight(heights: number[]): Promise<MockMerkle> {
     const EMPTY_LEAF = await genLeaf(0);
-    let leaves = [];
+    const leaves = [];
     while (heights.length > 0) {
-        let height = heights[0];
+        const height = heights[0];
         if ((leaves.length + 1) % (1 << height) != 0) {
             leaves.push(EMPTY_LEAF);
         } else {
@@ -167,7 +167,7 @@ async function insertNodeFromHeight(merkle: Contract, heights: number[], tree: M
     const totalHeight = tree.height();
     let nextIndex = 1;
 
-    let indexToPath = function (index: number, height: number) {
+    const indexToPath = function (index: number, height: number) {
         let answer: string = "";
         while (index > 0) {
             answer = (index % 2).toString() + answer;
@@ -180,7 +180,7 @@ async function insertNodeFromHeight(merkle: Contract, heights: number[], tree: M
         return answer;
     };
 
-    for (let height of heights) {
+    for (const height of heights) {
         nextIndex = Math.ceil(nextIndex / (1 << height)) * (1 << height);
         await merkle.insertNode(tree.at(indexToPath(nextIndex, height)), height);
         nextIndex += 1 << height;
@@ -188,9 +188,9 @@ async function insertNodeFromHeight(merkle: Contract, heights: number[], tree: M
 }
 
 async function testFromHeight(heights: number[]) {
-    let merkleABI = await ethers.getContractFactory("MerkleTreeTest");
-    let merkle = await merkleABI.deploy();
-    let tree = await buildLeafFromHeight(heights);
+    const merkleABI = await ethers.getContractFactory("MerkleTreeTest");
+    const merkle = await merkleABI.deploy();
+    const tree = await buildLeafFromHeight(heights);
     await insertNodeFromHeight(merkle, heights, tree);
     await merkle.commitRoot();
 

@@ -11,14 +11,6 @@ contract FixedPriceFlow is Flow {
 
     constructor(uint blocksPerEpoch_, uint deployDelay_) Flow(blocksPerEpoch_, deployDelay_) {}
 
-    function _initialize(address market_) internal override {
-        Flow._initialize(market_);
-    }
-
-    function initialize(address market_) public override onlyInitializeOnce {
-        _initialize(market_);
-    }
-
     function _beforeSubmit(uint sectors) internal override {
         uint price = FixedPrice(market).pricePerSector();
         uint fee = sectors * price;

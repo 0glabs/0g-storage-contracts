@@ -46,6 +46,7 @@ export const CONTRACTS = {
     Flow: new ContractMeta(Factories.Flow__factory),
     FixedPrice: new ContractMeta(Factories.FixedPrice__factory),
     PoraMine: new ContractMeta(Factories.PoraMine__factory),
+    PoraMineTest: new ContractMeta(Factories.PoraMineTest__factory),
     OnePoolReward: new ContractMeta(Factories.OnePoolReward__factory),
 } as const;
 

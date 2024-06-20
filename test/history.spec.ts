@@ -3,7 +3,7 @@ import { Contract } from "ethers";
 import { ethers } from "hardhat";
 
 function testData(index: number): Uint8Array {
-    let answer = Array(32).fill(0);
+    const answer = Array(32).fill(0);
     answer[0] = index;
     answer[1] = 1;
     return Uint8Array.from(answer);
@@ -16,7 +16,7 @@ function toBuffer(response: string): Uint8Array {
 describe("Digest history", function () {
     let digestContract: Contract;
     beforeEach(async () => {
-        let digestABI = await ethers.getContractFactory("DigestHistory");
+        const digestABI = await ethers.getContractFactory("DigestHistory");
         digestContract = await digestABI.deploy(10);
     });
 

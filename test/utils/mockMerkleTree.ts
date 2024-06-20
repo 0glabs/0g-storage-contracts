@@ -8,7 +8,7 @@ function bitLength(n: number): number {
 }
 
 function genLeafData(index: number): Buffer {
-    let input = Array(256).fill(0);
+    const input = Array(256).fill(0);
     input[0] = index;
     return Buffer.from(input);
 }
@@ -23,7 +23,7 @@ async function genLeaves(length: number): Promise<Buffer[]> {
 
 function pathIndex(input: string): number {
     let answer = 0;
-    for (let x of input) {
+    for (const x of input) {
         answer = 2 * answer + 1 + parseInt(x);
     }
     return answer;
@@ -43,7 +43,7 @@ class MockMerkle {
         const height = bitLength(length) + 1;
         const emptyLeaf = await genLeaf(0);
 
-        let tree: Buffer[] = Array((1 << height) - 1);
+        const tree: Buffer[] = Array((1 << height) - 1);
         const offset = (1 << (height - 1)) - 1;
         tree[offset] = Buffer.from(Array(32).fill(0));
         for (let i = 1; i < 1 << (height - 1); i++) {
@@ -109,7 +109,7 @@ class MockMerkle {
             }
         };
 
-        let proof: Buffer[] = [];
+        const proof: Buffer[] = [];
 
         for (let i = height; i > 0; i--) {
             proof.push(this.at(sibling(indexString.slice(0, i))));
@@ -119,7 +119,7 @@ class MockMerkle {
     }
 
     async getUnsealedData(recallPosition: number): Promise<Buffer[]> {
-        let unsealedData: Buffer[] = [];
+        const unsealedData: Buffer[] = [];
         for (let i = 0; i < 16; i++) {
             const leafData = await genLeafData(recallPosition + i);
             for (let j = 0; j < 256; j += 32) {

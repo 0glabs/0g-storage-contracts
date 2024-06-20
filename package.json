@@ -8,6 +8,7 @@
     "test": "hardhat test",
     "coverage": "hardhat coverage",
     "deploy-market-enabled": "hardhat deploy --tags market-enabled --network",
+    "deploy-no-market": "hardhat deploy --tags no-market --network",
     "lint": "yarn lint:sol && yarn lint:ts",
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "lint:ts": "eslint 'src/**/*.ts' 'test/**/*.ts' '*.ts' --max-warnings 0 --fix",

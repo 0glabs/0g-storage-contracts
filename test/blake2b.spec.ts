@@ -3,18 +3,18 @@ import { Contract } from "ethers";
 import { ethers } from "hardhat";
 import { blake2b } from "hash-wasm";
 
-function bufferResponse(response: String[]) {
-    return Uint8Array.from(Buffer.concat(response.map((x: String) => Buffer.from(x.substring(2), "hex"))));
+function bufferResponse(response: string[]) {
+    return Uint8Array.from(Buffer.concat(response.map((x: string) => Buffer.from(x.substring(2), "hex"))));
 }
 
-function bufferAnswer(answer: String) {
+function bufferAnswer(answer: string) {
     return Uint8Array.from(Buffer.from(answer, "hex"));
 }
 
 describe("Blake2b hash", function () {
     let blake2bContract: Contract;
     before(async () => {
-        let blake2bABI = await ethers.getContractFactory("Blake2bTest");
+        const blake2bABI = await ethers.getContractFactory("Blake2bTest");
         blake2bContract = await blake2bABI.deploy();
     });
 

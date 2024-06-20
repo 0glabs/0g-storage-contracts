@@ -5,9 +5,9 @@ import { CONTRACTS, deployInBeaconProxy } from "../utils/utils";
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const config = getConfig(hre.network.name);
-    await deployInBeaconProxy(hre, CONTRACTS.FixedPriceFlow, [config.blocksPerEpoch, config.flowDeployDelay]);
+    await deployInBeaconProxy(hre, CONTRACTS.PoraMineTest, [config.mineConfigs.settings]);
 };
 
-deploy.tags = [CONTRACTS.FixedPriceFlow.name, "market-enabled"];
+deploy.tags = [CONTRACTS.PoraMineTest.name, "no-market"];
 deploy.dependencies = [];
 export default deploy;

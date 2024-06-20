@@ -69,9 +69,9 @@ describe("Miner", function () {
 
         await mockReward.mock.claimMineReward.returns();
 
-        let book = await deployAddressBook({ flow: mockFlow.address, market: mockCashier.address });
+        const book = await deployAddressBook({ flow: mockFlow.address, market: mockCashier.address });
 
-        let mineABI = await ethers.getContractFactory("PoraMineTest");
+        const mineABI = await ethers.getContractFactory("PoraMineTest");
         mineContract = await mineABI.deploy(await book.getAddress(), 0);
 
         minerId = hexToBuffer(await keccak("minerId", 256));
@@ -132,7 +132,7 @@ describe("Miner", function () {
         const sealedContextDigest = hexToBuffer(await keccak("44", 256));
         const sealedData = await seal(minerId, sealedContextDigest, unsealedData, recallPosition);
 
-        let answer: PoraAnswerStruct = {
+        const answer: PoraAnswerStruct = {
             contextDigest: context.digest,
             nonce,
             minerId,
@@ -161,7 +161,7 @@ describe("Miner", function () {
     }
 
     it("check valid submission", async () => {
-        let { context, answer, tree, unsealedData, quality } = await makeTestData({});
+        const { context, answer, tree, unsealedData, quality } = await makeTestData({});
 
         expect(await mineContract.unseal(answer)).to.deep.equal(unsealedData.map((x) => "0x" + x.toString("hex")));
 
@@ -181,7 +181,7 @@ describe("Miner", function () {
     it("sharded info test", async () => {
         const flow = await new MockMerkle(await genLeaves(16384 - 1)).build();
         for (let i = 0; i < 32; i++) {
-            let { context, answer, tree, unsealedData, quality } = await makeTestData({
+            const { context, answer, tree, unsealedData, quality } = await makeTestData({
                 shardMask: BigInt(2) ** BigInt(64) - BigInt(8),
                 shardId: BigInt(3),
                 nonceSeed: i,
@@ -278,7 +278,7 @@ describe("Miner", function () {
         const GB = (1024 * 1024 * 1024) / 256;
         const KB = 1024 / 256;
 
-        let { context, answer, tree } = await makeTestData({});
+        const { context, answer, tree } = await makeTestData({});
         context.flowLength = 10 * TB;
         await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
         await mockFlow.mock.getEpochRange
@@ -321,7 +321,7 @@ describe("Miner", function () {
         const GB = (1024 * 1024 * 1024) / 256;
         const KB = 1024 / 256;
 
-        let { context, answer, tree } = await makeTestData({
+        const { context, answer, tree } = await makeTestData({
             shardMask: BigInt(2) ** BigInt(64) - BigInt(2),
             shardId: BigInt(1),
         });
@@ -375,7 +375,7 @@ async function seal(
     startPosition: number
 ): Promise<Buffer[]> {
     let maskInput = Buffer.concat([minerId, contextDigest, numToU256(startPosition)]);
-    let sealedData = Array(128);
+    const sealedData = Array(128);
     for (let i = 0; i < 128; i++) {
         sealedData[i] = xor(unsealedData[i], hexToBuffer(await keccak(maskInput, 256)));
         maskInput = sealedData[i];
@@ -404,7 +404,7 @@ async function makeContextDigest(
         mineStart = 12;
     }
 
-    let context: MineContextStruct = {
+    const context: MineContextStruct = {
         epoch,
         mineStart,
         flowRoot: tree.root(),
@@ -433,7 +433,7 @@ async function makeScratchPad(
     recallDigest: Buffer,
     length: number
 ): Promise<{ scratchPad: Buffer[]; chunkOffset: number; padSeed: Buffer }> {
-    let answer = Array(1024);
+    const answer = Array(1024);
 
     let input = hexToBuffer(await blake2b(Buffer.concat([minerId, nonce, contextDigest, recallDigest])));
 
@@ -456,7 +456,7 @@ function mixData(sealedData: Buffer[], scratchPad: Buffer[], sealOffset: number)
     return Array(128)
         .fill(0)
         .map(function (_, i) {
-            let scratchPadOffset = (sealOffset % 16) * 64;
+            const scratchPadOffset = (sealOffset % 16) * 64;
             let mask;
             if (i % 2 == 0) {
                 mask = scratchPad[scratchPadOffset + (i >> 1)].slice(0, 32);
@@ -471,7 +471,7 @@ function mixData(sealedData: Buffer[], scratchPad: Buffer[], sealOffset: number)
 
 function xor(x: Buffer, y: Buffer): Buffer {
     assert(x.length == y.length);
-    let answer = [];
+    const answer = [];
     for (let i = 0; i < x.length; i++) {
         answer.push(x[i] ^ y[i]);
     }

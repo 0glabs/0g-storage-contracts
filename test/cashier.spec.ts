@@ -41,17 +41,17 @@ describe("Cashier", async function () {
         const rewardAddress = await predictContractAddress(owner, 1);
         const marketAddress = await predictContractAddress(owner, 2);
 
-        let book = await deployAddressBook({
+        const book = await deployAddressBook({
             flow: mockFlow.address,
             mine: mockMine.address,
             reward: rewardAddress,
             market: marketAddress,
         });
 
-        let rewardABI = await ethers.getContractFactory("ChunkDecayReward");
+        const rewardABI = await ethers.getContractFactory("ChunkDecayReward");
         rewardContract = await rewardABI.deploy(book.address, 40);
 
-        let cashierABI = await ethers.getContractFactory("CashierTest");
+        const cashierABI = await ethers.getContractFactory("CashierTest");
         cashier = await cashierABI.deploy(
             book.address,
             mockUploadToken.address,
@@ -70,10 +70,10 @@ describe("Cashier", async function () {
     describe("Test Gauge Drip", async () => {
         it("Normal case", async () => {
             await cashier.updateTotalSubmission((3 * TB) / BYTES_PER_SECTOR);
-            let beforeGauge = (await cashier.gauge()).toBigInt();
+            const beforeGauge = (await cashier.gauge()).toBigInt();
             await increaseTime(100);
             await cashier.refreshGauge();
-            let afterGauge = (await cashier.gauge()).toBigInt();
+            const afterGauge = (await cashier.gauge()).toBigInt();
             assert(afterGauge - beforeGauge == BigInt(300 * MB), "Incorrect gauge delta");
         });
 
@@ -81,27 +81,27 @@ describe("Cashier", async function () {
             await cashier.updateTotalSubmission((3 * TB) / BYTES_PER_SECTOR);
             await increaseTime(20000);
             await cashier.refreshGauge();
-            let afterGauge = (await cashier.gauge()).toBigInt();
+            const afterGauge = (await cashier.gauge()).toBigInt();
             assert(afterGauge == BigInt(30 * GB));
         });
 
         it("Small dripping rate", async () => {
             await cashier.updateTotalSubmission((1 * TB) / BYTES_PER_SECTOR - 1);
-            let beforeGauge = (await cashier.gauge()).toBigInt();
+            const beforeGauge = (await cashier.gauge()).toBigInt();
             await increaseTime(100);
             await cashier.refreshGauge();
-            let afterGauge = (await cashier.gauge()).toBigInt();
+            const afterGauge = (await cashier.gauge()).toBigInt();
             assert(afterGauge - beforeGauge == BigInt(100 * MB), "Incorrect gauge delta");
         });
 
         it("Dynamic dripping rate", async () => {
             await cashier.updateTotalSubmission((1 * TB) / BYTES_PER_SECTOR - 1);
-            let beforeGauge = (await cashier.gauge()).toBigInt();
+            const beforeGauge = (await cashier.gauge()).toBigInt();
             await increaseTime(100);
             await cashier.updateTotalSubmission((1 * TB) / BYTES_PER_SECTOR);
             await increaseTime(100);
             await cashier.refreshGauge();
-            let afterGauge = (await cashier.gauge()).toBigInt();
+            const afterGauge = (await cashier.gauge()).toBigInt();
             assert(afterGauge - beforeGauge == BigInt(300 * MB), "Incorrect gauge delta");
         });
 
@@ -109,12 +109,12 @@ describe("Cashier", async function () {
             await mockZgsToken.mock.transferFrom.returns(true);
 
             await cashier.updateTotalSubmission((3 * TB) / BYTES_PER_SECTOR - 1);
-            let beforeGauge = (await cashier.gauge()).toBigInt();
+            const beforeGauge = (await cashier.gauge()).toBigInt();
             await increaseTime(100);
             await cashier.purchase((50 * MB) / BYTES_PER_SECTOR, BASIC_PRICE, 0);
             await increaseTime(100);
             await cashier.refreshGauge();
-            let afterGauge = (await cashier.gauge()).toBigInt();
+            const afterGauge = (await cashier.gauge()).toBigInt();
             assert(afterGauge - beforeGauge == BigInt(550 * MB), "Incorrect gauge delta");
         });
     });
