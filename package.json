@@ -7,7 +7,7 @@
     "build": "hardhat compile",
     "test": "hardhat test",
     "coverage": "hardhat coverage",
-    "deploy": "hardhat deploy --network",
+    "deploy-market-enabled": "hardhat deploy --tags market-enabled --network",
     "lint": "yarn lint:sol && yarn lint:ts",
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "lint:ts": "eslint 'src/**/*.ts' 'test/**/*.ts' '*.ts' --max-warnings 0 --fix",

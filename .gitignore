@@ -8,8 +8,8 @@ deployments/
 .env
 .idea/
 .vscode/
+/deploy
 artifacts/
-deploy/
 typechain-types/
 coverage/
 build/
