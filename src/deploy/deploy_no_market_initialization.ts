@@ -1,14 +1,19 @@
-import { ZeroAddress } from "ethers";
 import { DeployFunction } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { getConfig } from "../config";
-import { CONTRACTS, getTypedContract } from "../utils/utils";
+import { CONTRACTS, deployDirectly, getTypedContract } from "../utils/utils";
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-    // initialize all contracts
     const config = getConfig(hre.network.name);
+    // deploy dummy contracts
+    console.log(`deploying dummy market and reward..`);
+    await deployDirectly(hre, CONTRACTS.DummyMarket);
+    await deployDirectly(hre, CONTRACTS.DummyReward);
+    // initialize all contracts
     const poraMineTest_ = await getTypedContract(hre, CONTRACTS.PoraMineTest);
     const flow_ = await getTypedContract(hre, CONTRACTS.Flow);
+    const dummyMarket_ = await getTypedContract(hre, CONTRACTS.DummyMarket);
+    const dummyReward_ = await getTypedContract(hre, CONTRACTS.DummyReward);
 
     console.log(`initializing pora mine test..`);
     if (!(await poraMineTest_.initialized())) {
@@ -17,14 +22,14 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
                 config.mineConfigs.initHashRate,
                 config.mineConfigs.adjustRatio,
                 await flow_.getAddress(),
-                ZeroAddress
+                await dummyReward_.getAddress()
             )
         ).wait();
     }
 
     console.log(`initializing flow..`);
     if (!(await flow_.initialized())) {
-        await (await flow_["initialize(address)"](ZeroAddress)).wait();
+        await (await flow_["initialize(address)"](await dummyMarket_.getAddress())).wait();
     }
     console.log(`all contract initialized.`);
 };

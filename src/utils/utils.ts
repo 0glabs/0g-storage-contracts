@@ -48,10 +48,28 @@ export const CONTRACTS = {
     PoraMine: new ContractMeta(Factories.PoraMine__factory),
     PoraMineTest: new ContractMeta(Factories.PoraMineTest__factory),
     OnePoolReward: new ContractMeta(Factories.OnePoolReward__factory),
+    DummyMarket: new ContractMeta(Factories.DummyMarket__factory),
+    DummyReward: new ContractMeta(Factories.DummyReward__factory),
 } as const;
 
 const UPGRADEABLE_BEACON = "UpgradeableBeacon";
 const BEACON_PROXY = "BeaconProxy";
+
+export async function deployDirectly(
+    hre: HardhatRuntimeEnvironment,
+    contract: ContractMeta<unknown>,
+    args: unknown[] = []
+) {
+    const { deployments, getNamedAccounts } = hre;
+    const { deployer } = await getNamedAccounts();
+    // deploy implementation
+    await deployments.deploy(contract.name, {
+        from: deployer,
+        contract: contract.contractName(),
+        args: args,
+        log: true,
+    });
+}
 
 export async function deployInBeaconProxy(
     hre: HardhatRuntimeEnvironment,
