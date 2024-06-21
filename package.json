@@ -16,6 +16,7 @@
     "fmt:ts": "prettier 'src/**/*.ts' 'test/**/*.ts' '*.ts' -w"
   },
   "devDependencies": {
+    "@clrfund/waffle-mock-contract": "^0.0.11",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.6",
     "@nomicfoundation/hardhat-ethers": "^3.0.5",
     "@nomicfoundation/hardhat-ignition": "^0.15.5",
@@ -45,6 +46,7 @@
     "hardhat-gas-reporter": "^2.1.1",
     "hardhat-interface-generator": "^0.0.6",
     "hash-wasm": "^4.9.0",
+    "patch-package": "^8.0.0",
     "prettier": "2.8.4",
     "prettier-plugin-organize-imports": "3.2.4",
     "prettier-plugin-solidity": "1.1.2",

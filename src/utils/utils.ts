@@ -50,6 +50,9 @@ export const CONTRACTS = {
     OnePoolReward: new ContractMeta(Factories.OnePoolReward__factory),
     DummyMarket: new ContractMeta(Factories.DummyMarket__factory),
     DummyReward: new ContractMeta(Factories.DummyReward__factory),
+    Blake2bTest: new ContractMeta(Factories.Blake2bTest__factory),
+    ChunkDecayReward: new ContractMeta(Factories.ChunkDecayReward__factory),
+    CashierTest: new ContractMeta(Factories.CashierTest__factory),
 } as const;
 
 const UPGRADEABLE_BEACON = "UpgradeableBeacon";

@@ -1,7 +1,7 @@
 import { keccak } from "hash-wasm";
 
 function bitLength(n: number): number {
-    if (n == 0) {
+    if (n === 0) {
         return 0;
     }
     return Math.floor(Math.log(n) / Math.log(2)) + 1;
@@ -43,6 +43,7 @@ class MockMerkle {
         const height = bitLength(length) + 1;
         const emptyLeaf = await genLeaf(0);
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const tree: Buffer[] = Array((1 << height) - 1);
         const offset = (1 << (height - 1)) - 1;
         tree[offset] = Buffer.from(Array(32).fill(0));
@@ -118,12 +119,12 @@ class MockMerkle {
         return proof;
     }
 
-    async getUnsealedData(recallPosition: number): Promise<Buffer[]> {
+    getUnsealedData(recallPosition: number): Buffer[] {
         const unsealedData: Buffer[] = [];
         for (let i = 0; i < 16; i++) {
-            const leafData = await genLeafData(recallPosition + i);
+            const leafData = genLeafData(recallPosition + i);
             for (let j = 0; j < 256; j += 32) {
-                unsealedData.push(leafData.slice(j, j + 32));
+                unsealedData.push(leafData.subarray(j, j + 32));
             }
         }
         return unsealedData;

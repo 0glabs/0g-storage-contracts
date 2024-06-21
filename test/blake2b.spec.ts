@@ -1,7 +1,8 @@
 import { expect } from "chai";
-import { Contract } from "ethers";
-import { ethers } from "hardhat";
+import hre, { deployments } from "hardhat";
 import { blake2b } from "hash-wasm";
+import { CONTRACTS, getTypedContract } from "../src/utils/utils";
+import { Blake2bTest } from "../typechain-types";
 
 function bufferResponse(response: string[]) {
     return Uint8Array.from(Buffer.concat(response.map((x: string) => Buffer.from(x.substring(2), "hex"))));
@@ -12,10 +13,10 @@ function bufferAnswer(answer: string) {
 }
 
 describe("Blake2b hash", function () {
-    let blake2bContract: Contract;
+    let blake2bContract: Blake2bTest;
     before(async () => {
-        const blake2bABI = await ethers.getContractFactory("Blake2bTest");
-        blake2bContract = await blake2bABI.deploy();
+        await deployments.fixture("blake2b-test");
+        blake2bContract = await getTypedContract(hre, CONTRACTS.Blake2bTest);
     });
 
     it("hash empty", async () => {
