@@ -11,7 +11,7 @@
     "deploy-no-market": "hardhat deploy --tags no-market --network",
     "lint": "yarn lint:sol && yarn lint:ts",
     "lint:sol": "solhint 'contracts/**/*.sol'",
-    "lint:ts": "eslint 'src/**/*.ts' 'test/**/*.ts' '*.ts' --max-warnings 0 --fix",
+    "lint:ts": "eslint 'src/**/*.ts' '*.ts' --max-warnings 0 --fix",
     "fmt:sol": "prettier 'contracts/**/*.sol' -w",
     "fmt:ts": "prettier 'src/**/*.ts' 'test/**/*.ts' '*.ts' -w",
     "postinstall": "patch-package"

@@ -6,14 +6,7 @@ import "../interfaces/IReward.sol";
 import "../interfaces/IFlow.sol";
 
 contract DummyReward is IReward {
-    function fillReward(uint256 beforeLength, uint256 uploadSectors)
-        external
-        payable
-    {}
+    function fillReward(uint beforeLength, uint uploadSectors) external payable {}
 
-    function claimMineReward(
-        uint256 pricingIndex,
-        address payable beneficiary,
-        bytes32 minerId
-    ) external {}
+    function claimMineReward(uint pricingIndex, address payable beneficiary, bytes32 minerId) external {}
 }

@@ -33,7 +33,7 @@ contract Cashier is IMarket, OnlySender, TimeInterval, Initializable {
     address public flow;
     address public mine;
     address public stake;
-    
+
     function _initialize(
         address flow_,
         address mine_,
@@ -89,7 +89,7 @@ contract Cashier is IMarket, OnlySender, TimeInterval, Initializable {
         uint chargedFee = (uploadSectors * paidFee) / paidUploadAmount;
         paidFee -= chargedFee;
         paidUploadAmount -= uploadSectors;
-        
+
         reward.fillReward{value: chargedFee}(beforeLength, totalSectors);
     }
 

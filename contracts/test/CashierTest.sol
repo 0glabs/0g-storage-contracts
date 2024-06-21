@@ -12,7 +12,7 @@ contract CashierTest is Cashier {
     constructor(address zgsToken_) payable {
         zgsToken = MockHackToken(zgsToken_);
     }
-    
+
     function initialize(
         address flow_,
         address mine_,
