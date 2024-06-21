@@ -33,14 +33,14 @@ contract Cashier is IMarket, OnlySender, TimeInterval, Initializable {
     address public flow;
     address public mine;
     address public stake;
-
-    function initialize(
+    
+    function _initialize(
         address flow_,
         address mine_,
         address reward_,
         address uploadToken_,
         address stake_
-    ) public virtual onlyInitializeOnce {
+    ) internal virtual {
         flow = flow_;
         mine = mine_;
         reward = IReward(reward_);
@@ -48,6 +48,16 @@ contract Cashier is IMarket, OnlySender, TimeInterval, Initializable {
         stake = stake_;
 
         _tick();
+    }
+
+    function initialize(
+        address flow_,
+        address mine_,
+        address reward_,
+        address uploadToken_,
+        address stake_
+    ) public payable virtual onlyInitializeOnce {
+        _initialize(flow_, mine_, reward_, uploadToken_, stake_);
     }
 
     function refreshGauge() public {
@@ -79,7 +89,7 @@ contract Cashier is IMarket, OnlySender, TimeInterval, Initializable {
         uint chargedFee = (uploadSectors * paidFee) / paidUploadAmount;
         paidFee -= chargedFee;
         paidUploadAmount -= uploadSectors;
-
+        
         reward.fillReward{value: chargedFee}(beforeLength, totalSectors);
     }
 

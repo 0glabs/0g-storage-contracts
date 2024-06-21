@@ -12,6 +12,17 @@ contract CashierTest is Cashier {
     constructor(address zgsToken_) payable {
         zgsToken = MockHackToken(zgsToken_);
     }
+    
+    function initialize(
+        address flow_,
+        address mine_,
+        address reward_,
+        address uploadToken_,
+        address stake_
+    ) public payable override onlyInitializeOnce {
+        Cashier._initialize(flow_, mine_, reward_, uploadToken_, stake_);
+        flowLength = 1;
+    }
 
     function updateTotalSubmission(uint sectors) external {
         flowLength += sectors;

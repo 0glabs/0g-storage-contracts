@@ -13,7 +13,8 @@
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "lint:ts": "eslint 'src/**/*.ts' 'test/**/*.ts' '*.ts' --max-warnings 0 --fix",
     "fmt:sol": "prettier 'contracts/**/*.sol' -w",
-    "fmt:ts": "prettier 'src/**/*.ts' 'test/**/*.ts' '*.ts' -w"
+    "fmt:ts": "prettier 'src/**/*.ts' 'test/**/*.ts' '*.ts' -w",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@clrfund/waffle-mock-contract": "^0.0.11",

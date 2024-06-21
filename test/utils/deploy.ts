@@ -10,10 +10,6 @@ async function deployMock(owner: Signer, name: string): Promise<MockContract> {
 async function transferBalance(owner: Signer, receiver: string, value: string) {
     const amount = parseEther(value);
 
-    console.log("before send");
-    console.log(receiver);
-    console.log(owner);
-
     const tx = await owner.sendTransaction({
         to: receiver,
         value: amount,
