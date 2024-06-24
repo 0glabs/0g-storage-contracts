@@ -13,11 +13,7 @@ struct Reward {
 }
 
 library RewardLibrary {
-    function addReward(
-        Reward storage reward,
-        uint256 amount,
-        bool finalized
-    ) internal {
+    function addReward(Reward storage reward, uint amount, bool finalized) internal {
         require(amount <= type(uint128).max, "Reward overflow");
         require(reward.startTime == 0, "Reward item has been initialized");
 
@@ -28,54 +24,37 @@ library RewardLibrary {
         }
     }
 
-    function updateReward(Reward memory reward, uint256 releaseReward)
-        internal
-        view
-    {
+    function updateReward(Reward memory reward, uint releaseReward) internal view {
         reward.lockedReward -= uint128(releaseReward);
         reward.claimableReward += uint128(releaseReward);
         reward.lastUpdate = uint40(block.timestamp);
     }
 
-    function expDecayReward(Reward memory reward, uint256 annualMilliDecayRate)
-        internal
-        view
-        returns (uint256)
-    {
+    function expDecayReward(Reward memory reward, uint annualMilliDecayRate) internal view returns (uint) {
         if (reward.startTime == 0) {
             return 0;
         }
 
-        uint256 timeElapsed = (block.timestamp - reward.lastUpdate) * 1000;
-        uint256 decayX64 = (timeElapsed *
-            uint256(Exponential.INV_LOG2X128) *
-            annualMilliDecayRate) /
+        uint timeElapsed = (block.timestamp - reward.lastUpdate) * 1000;
+        uint decayX64 = (timeElapsed * uint(Exponential.INV_LOG2X128) * annualMilliDecayRate) /
             (1 << 64) /
             MILLI_SECONDS_PER_YEAR /
             1000;
-        uint256 releaseX96 = (1 << 96) - Exponential.powHalf64X96(decayX64);
-        return (releaseX96 * uint256(reward.lockedReward)) / (1 << 96);
+        uint releaseX96 = (1 << 96) - Exponential.powHalf64X96(decayX64);
+        return (releaseX96 * uint(reward.lockedReward)) / (1 << 96);
     }
 
-    function linearDecayReward(Reward memory reward, uint256 releaseMonth)
-        internal
-        view
-        returns (uint256)
-    {
+    function linearDecayReward(Reward memory reward, uint releaseMonth) internal view returns (uint) {
         if (reward.lastUpdate == 0) {
             return 0;
         }
 
-        uint256 releasedReward = reward.claimableReward +
-            reward.distributedReward;
-        uint256 totalReward = reward.lockedReward + releasedReward;
+        uint releasedReward = reward.claimableReward + reward.distributedReward;
+        uint totalReward = reward.lockedReward + releasedReward;
 
-        uint256 timeElapsedSinceLaunch = block.timestamp - reward.startTime;
+        uint timeElapsedSinceLaunch = block.timestamp - reward.startTime;
 
-        uint256 expectedReleasedReward = (totalReward *
-            timeElapsedSinceLaunch) /
-            releaseMonth /
-            SECONDS_PER_MONTH;
+        uint expectedReleasedReward = (totalReward * timeElapsedSinceLaunch) / releaseMonth / SECONDS_PER_MONTH;
         if (expectedReleasedReward > totalReward) {
             expectedReleasedReward = totalReward;
         }
@@ -85,15 +64,11 @@ library RewardLibrary {
         return expectedReleasedReward - releasedReward;
     }
 
-    function claimReward(Reward memory reward)
-        internal
-        pure
-        returns (uint256 amount)
-    {
+    function claimReward(Reward memory reward) internal pure returns (uint amount) {
         uint128 claimedReward = reward.claimableReward / 2;
         reward.claimableReward -= claimedReward;
         reward.distributedReward += claimedReward;
 
-        return uint256(claimedReward);
+        return uint(claimedReward);
     }
 }

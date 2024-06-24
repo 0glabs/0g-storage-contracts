@@ -7,31 +7,27 @@ import "./ISafeERC20.sol";
 contract StakeToken is ERC20, ISafeERC20 {
     constructor() ERC20("Staked ZeroGStorage", "sZGS") {}
 
-    event Stake(address indexed sender, uint256 zgsAmount, uint256 stakeAmount);
-    event Unstake(
-        address indexed sender,
-        uint256 zgsAmount,
-        uint256 stakeAmount
-    );
+    event Stake(address indexed sender, uint zgsAmount, uint stakeAmount);
+    event Unstake(address indexed sender, uint zgsAmount, uint stakeAmount);
 
     ISafeERC20 public zgsToken;
 
-    function stake(uint256 depositAmount) public {
-        uint256 zgsBalance = zgsToken.balanceOf(address(this));
+    function stake(uint depositAmount) public {
+        uint zgsBalance = zgsToken.balanceOf(address(this));
         zgsToken.transferFrom(msg.sender, address(this), depositAmount);
 
-        uint256 supply = totalSupply();
-        uint256 mintAmount = (depositAmount * supply) / zgsBalance;
+        uint supply = totalSupply();
+        uint mintAmount = (depositAmount * supply) / zgsBalance;
 
         _mint(msg.sender, mintAmount);
         emit Stake(msg.sender, depositAmount, mintAmount);
     }
 
-    function unstake(uint256 burnAmount) public {
-        uint256 zgsBalance = zgsToken.balanceOf(address(this));
+    function unstake(uint burnAmount) public {
+        uint zgsBalance = zgsToken.balanceOf(address(this));
 
-        uint256 supply = totalSupply();
-        uint256 claimAmount = (burnAmount * zgsBalance) / supply;
+        uint supply = totalSupply();
+        uint claimAmount = (burnAmount * zgsBalance) / supply;
 
         zgsToken.transfer(msg.sender, burnAmount);
         _burn(msg.sender, burnAmount);
