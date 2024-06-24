@@ -66,6 +66,10 @@ const config: HardhatUserConfig = {
             ...userConfig,
             url: "http://0.0.0.0:8545",
         },
+        zgTestnet: {
+            ...userConfig,
+            url: "http://0.0.0.0:8545",
+        },
     },
     namedAccounts: {
         deployer: 0,
