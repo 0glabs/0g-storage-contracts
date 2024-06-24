@@ -1,4 +1,5 @@
 import { ZerogContractConfigs } from "./networks/zerog_contract_config";
+import { ZerogTestnetContractConfigs } from "./networks/zerog_testnet_contract_config";
 
 export interface MineConfigs {
     settings: number;
@@ -29,6 +30,7 @@ export const DefaultConfig: NetworkConfigs = {
 
 export const GlobalConfig: { [key: string]: NetworkConfigs } = {
     zg: ZerogContractConfigs,
+    zgTestnet: ZerogTestnetContractConfigs,
 };
 
 export function getConfig(network: string) {
