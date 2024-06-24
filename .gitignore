@@ -9,10 +9,8 @@ deployments/
 .idea/
 .vscode/
 deploy/*
-artifacts/
 typechain-types/
 coverage/
 build/
 coverage.json
-abis
 yarn-error.log

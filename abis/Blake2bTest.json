@@ -1,0 +1,78 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32[]",
+        "name": "input",
+        "type": "bytes32[]"
+      }
+    ],
+    "name": "blake2b",
+    "outputs": [
+      {
+        "internalType": "bytes32[2]",
+        "name": "h",
+        "type": "bytes32[2]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32[5]",
+        "name": "input",
+        "type": "bytes32[5]"
+      }
+    ],
+    "name": "blake2bFive",
+    "outputs": [
+      {
+        "internalType": "bytes32[2]",
+        "name": "h",
+        "type": "bytes32[2]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32[2]",
+        "name": "input",
+        "type": "bytes32[2]"
+      }
+    ],
+    "name": "blake2bPair",
+    "outputs": [
+      {
+        "internalType": "bytes32[2]",
+        "name": "h",
+        "type": "bytes32[2]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32[3]",
+        "name": "input",
+        "type": "bytes32[3]"
+      }
+    ],
+    "name": "blake2bTriple",
+    "outputs": [
+      {
+        "internalType": "bytes32[2]",
+        "name": "h",
+        "type": "bytes32[2]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

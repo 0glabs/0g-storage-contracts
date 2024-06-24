@@ -1,0 +1,15 @@
+[
+  {
+    "inputs": [],
+    "name": "Q112",
+    "outputs": [
+      {
+        "internalType": "uint224",
+        "name": "",
+        "type": "uint224"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]
