@@ -37,35 +37,41 @@ Responsible for validating mining submissions and distributing rewards.
 
 ```shell
 yarn
-yarn compile
+yarn build
 ```
 
 ## Deploy contract
 
-Use the following command for deployment
+If the economic model is not enabled, data submissions and mining will not involve token transfers. If enabled, `FixedPrice` will be selected as the market, and `OnePoolReward` as the Reward.
+
+Use the following command for deployment with economic model:
 
 ```
-npx hardhat run scripts/deploy.ts --network <targetnetwork>
+yarn deploy-market-enabled <network>
 ```
 
-### Module Selection and Parameters
+For deployment without economic model:
 
-By setting environment variables, you can control the types of contracts deployed and their parameters.
+```
+yarn deploy-no-market <network>
+```
 
-- **BLOCKS_PER_EPOCH**: This variable determines how often the `makeContext` function needs to be called within each mining cycle, known as an Epoch. If this function is not called over several epochs, it may cause issues. By default, this value is set very high, meaning that the contract will not generate mining tasks. For mining tests, adjust it to a suitable size (recommended block count per hour).
+To export all contract addresses of a deployment into a single file:
+```
+yarn hardhat export --network <network> --export <filename>
+``` 
 
-- **ENABLE_MARKET**: Accepts `true` or `false`. If the economic model is not enabled, data submissions and mining will not involve token transfers. If enabled, `FixedPrice` will be selected as the market, and `OnePoolReward` as the Reward.
+### Deployment Configurations
 
-- **LIFETIME_MONTH**: Upon enabling the economic model, this controls the data storage validity period and the reward release cycle. The annual storage cost per GB is a constant in the contract named `ANNUAL_ZGS_TOKENS_PER_GB`.
+You can create a custom configuration file for a network under [networks](src/networks/) folder, then put the network name and the configuration struct as entry in `GlobalConfig` mapping in [config.ts](src/config.ts).
 
-- **INIT_HASH_RATE**: The initial hash rate for PoRA mining.
+See configuration for [zg](src/networks/zerog_contract_config.ts) network as reference.
 
 ### targetnetwork
 
 You have several options for the target network, which you can modify in `hardhat.config.ts`:
 
 - **localtest**: For local testing environments.
-- **bsc**: For deploying on Binance Smart Chain Testnet.
-- **conflux**: For deploying on the Conflux network eSpace Testnet.
+- **zg**: For deploying on Zero Gravity network.
 
 When deploying, ensure that your environment is properly configured with the necessary variables and network settings to match your deployment goals. This modular and flexible approach allows for tailored deployments that fit the specific needs of your project.

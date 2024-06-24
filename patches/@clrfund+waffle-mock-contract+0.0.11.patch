@@ -1,0 +1,34 @@
+diff --git a/node_modules/@clrfund/waffle-mock-contract/dist/cjs/src/index.js b/node_modules/@clrfund/waffle-mock-contract/dist/cjs/src/index.js
+index 629a8c5..fc90c37 100644
+--- a/node_modules/@clrfund/waffle-mock-contract/dist/cjs/src/index.js
++++ b/node_modules/@clrfund/waffle-mock-contract/dist/cjs/src/index.js
+@@ -15,11 +15,13 @@ class Stub {
+         this.revertSet = false;
+         this.argsSet = false;
+         this.callData = func.selector;
++        this.callDataPlain = func.selector;
+     }
+     err(reason) {
+         this.stubCalls = [];
+         this.revertSet = false;
+         this.argsSet = false;
++        this.callData = this.callDataPlain;
+         throw new Error(reason);
+     }
+     returns(...args) {
+@@ -91,6 +93,7 @@ class Stub {
+                 this.stubCalls = [];
+                 this.argsSet = false;
+                 this.revertSet = false;
++                this.callData = this.callDataPlain;
+                 reject(e);
+                 return;
+             }
+@@ -98,6 +101,7 @@ class Stub {
+         this.stubCalls = [];
+         this.argsSet = false;
+         this.revertSet = false;
++        this.callData = this.callDataPlain;
+         resolve();
+     }
+ }

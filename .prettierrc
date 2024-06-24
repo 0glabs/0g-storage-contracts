@@ -1,0 +1,24 @@
+{
+    "tabWidth": 4,
+    "useTabs": false,
+    "plugins": ["prettier-plugin-organize-imports", "prettier-plugin-solidity"],
+    "organizeImportsSkipDestructiveCodeActions": true,
+    "overrides": [
+        {
+            "files": "*.sol",
+            "options": {
+                "printWidth": 120,
+                "tabWidth": 4,
+                "useTabs": false,
+                "singleQuote": false,
+                "bracketSpacing": false
+            }
+        },
+        {
+            "files": "*.ts",
+            "options": {
+                "printWidth": 120
+            }
+        }
+    ]
+}

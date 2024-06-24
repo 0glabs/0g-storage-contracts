@@ -6,39 +6,33 @@ import "../../utils/OnlySender.sol";
 import "../../token/ISafeERC20.sol";
 
 contract Coupon is ERC721, Ownable, OnlySender {
-    event Fuel(uint256 indexed tokenId, uint256 amount);
-    event Consume(
-        uint256 indexed tokenId,
-        address indexed user,
-        uint256 amount
-    );
-    event Revoke(uint256 indexed tokenId, uint256 amount);
+    event Fuel(uint indexed tokenId, uint amount);
+    event Consume(uint indexed tokenId, address indexed user, uint amount);
+    event Revoke(uint indexed tokenId, uint amount);
 
     ISafeERC20 public immutable zgsToken;
     address public immutable cashier;
 
-    mapping(uint256 => uint256) public uploadBalance;
-    uint256 public totalUnusedBalance;
-    uint256 public nextTokenId;
+    mapping(uint => uint) public uploadBalance;
+    uint public totalUnusedBalance;
+    uint public nextTokenId;
 
-    uint256 private constant BASIC_PRICE = 1000;
+    uint private constant BASIC_PRICE = 1000;
 
-    constructor(address zgsToken_, address cashier_)
-        ERC721("ZeroGStorageCoupon", "ZGS-CPN")
-    {
+    constructor(address zgsToken_, address cashier_) ERC721("ZeroGStorageCoupon", "ZGS-CPN") {
         zgsToken = ISafeERC20(zgsToken_);
         cashier = cashier_;
         nextTokenId = 1;
     }
 
-    function mint(address to) external onlyOwner returns (uint256) {
-        uint256 tokenId = nextTokenId;
+    function mint(address to) external onlyOwner returns (uint) {
+        uint tokenId = nextTokenId;
         _mint(to, tokenId);
         nextTokenId += 1;
         return tokenId;
     }
 
-    function fuel(uint256 tokenId, uint256 amount) public onlyOwner {
+    function fuel(uint tokenId, uint amount) public onlyOwner {
         require(_exists(tokenId), "coupon does not exist");
         require(amount <= totalUnusedBalance, "no capacity");
 
@@ -49,11 +43,7 @@ contract Coupon is ERC721, Ownable, OnlySender {
         emit Fuel(tokenId, amount);
     }
 
-    function pay(
-        address requester,
-        uint256 tokenId,
-        uint256 amount
-    ) external {
+    function pay(address requester, uint tokenId, uint amount) external {
         require(msg.sender == cashier, "Only cashier can call");
         require(ownerOf(tokenId) == requester, "Requester not own this token");
 
@@ -63,10 +53,10 @@ contract Coupon is ERC721, Ownable, OnlySender {
         emit Consume(tokenId, requester, amount);
     }
 
-    function revoke(uint256 tokenId) public onlyOwner {
+    function revoke(uint tokenId) public onlyOwner {
         require(_exists(tokenId), "coupon does not exist");
 
-        uint256 amount = uploadBalance[tokenId];
+        uint amount = uploadBalance[tokenId];
         zgsToken.transferFrom(cashier, msg.sender, amount * BASIC_PRICE);
         uploadBalance[tokenId] = 0;
         totalUnusedBalance += amount;

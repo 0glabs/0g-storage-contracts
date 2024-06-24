@@ -4,27 +4,23 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 struct SubmissionNode {
     bytes32 root;
-    uint256 height;
+    uint height;
 }
 
 struct Submission {
-    uint256 length;
+    uint length;
     bytes tags;
     SubmissionNode[] nodes;
 }
 
 library SubmissionLibrary {
-    uint256 public constant MAX_DEPTH = 64;
-    uint256 public constant ENTRY_SIZE = 256;
-    uint256 public constant MAX_LENGTH = 4;
+    uint public constant MAX_DEPTH = 64;
+    uint public constant ENTRY_SIZE = 256;
+    uint public constant MAX_LENGTH = 4;
 
-    function size(Submission memory submission)
-        internal
-        pure
-        returns (uint256)
-    {
-        uint256 _size = 0;
-        for (uint256 i = 0; i < submission.nodes.length; i++) {
+    function size(Submission memory submission) internal pure returns (uint) {
+        uint _size = 0;
+        for (uint i = 0; i < submission.nodes.length; i++) {
             _size += 1 << submission.nodes[i].height;
         }
         return _size;
@@ -36,11 +32,7 @@ library SubmissionLibrary {
         }
 
         // Solidity 0.8 has overflow checking by default.
-        if (
-            submission.nodes[0].height -
-                submission.nodes[submission.nodes.length - 1].height >=
-            MAX_LENGTH
-        ) {
+        if (submission.nodes[0].height - submission.nodes[submission.nodes.length - 1].height >= MAX_LENGTH) {
             return false;
         }
 
@@ -48,29 +40,25 @@ library SubmissionLibrary {
             return false;
         }
 
-        for (uint256 i = 0; i < submission.nodes.length - 1; i++) {
+        for (uint i = 0; i < submission.nodes.length - 1; i++) {
             if (submission.nodes[i + 1].height >= submission.nodes[i].height) {
                 return false;
             }
         }
 
-        uint256 submissionCapacity = size(submission);
+        uint submissionCapacity = size(submission);
 
         if (submission.length > submissionCapacity * ENTRY_SIZE) {
             return false;
         }
 
-        uint256 lastCapacity;
+        uint lastCapacity;
         if (submissionCapacity < (1 << MAX_LENGTH)) {
             lastCapacity = submissionCapacity - 1;
         } else if (submission.nodes.length == 1) {
-            lastCapacity =
-                submissionCapacity -
-                (submissionCapacity >> MAX_LENGTH);
+            lastCapacity = submissionCapacity - (submissionCapacity >> MAX_LENGTH);
         } else {
-            lastCapacity =
-                submissionCapacity -
-                (1 << (submission.nodes[0].height - MAX_LENGTH + 1));
+            lastCapacity = submissionCapacity - (1 << (submission.nodes[0].height - MAX_LENGTH + 1));
         }
 
         if (submission.length <= lastCapacity * ENTRY_SIZE) {
@@ -80,11 +68,7 @@ library SubmissionLibrary {
         return true;
     }
 
-    function digest(Submission memory submission)
-        internal
-        pure
-        returns (bytes32)
-    {
+    function digest(Submission memory submission) internal pure returns (bytes32) {
         return keccak256(abi.encode(submission.nodes));
     }
 }

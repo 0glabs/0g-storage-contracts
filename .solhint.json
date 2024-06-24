@@ -1,12 +1,20 @@
 {
-  "extends": "solhint:recommended", 
-  "rules": {
-    "compiler-version": ["error",">=0.8.0"], 
-    "avoid-low-level-calls": "off",
-    "reason-string": "off",
-    "no-inline-assembly": "off",
-    "no-empty-blocks": "off",
-    "not-rely-on-time": "off",
-    "func-visibility": ["warn",{"ignoreConstructors":true}]
-  }
+    "extends": "solhint:recommended",
+    "plugins": ["prettier"],
+    "rules": {
+        "avoid-low-level-calls": "off",
+        "compiler-version": "off",
+        "gas-custom-errors": "off",
+        "explicit-types": ["warn", "implicit"],
+        "func-visibility": ["warn", { "ignoreConstructors": true }],
+        "max-states-count": "off",
+        "no-empty-blocks": "off",
+        "no-global-import": "off",
+        "no-inline-assembly": "off",
+        "not-rely-on-time": "off",
+        "prettier/prettier": "error",
+        "reason-string": "off",
+        "immutable-vars-naming": "off",
+        "one-contract-per-file": "off"
+    }
 }
