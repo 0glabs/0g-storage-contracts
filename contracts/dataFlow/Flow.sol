@@ -1,39 +1,44 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity >=0.8.0 <0.9.0;
 
-import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./IncrementalMerkleTree.sol";
 import "../utils/IDigestHistory.sol";
+import "../utils/Initializable.sol";
 import "../utils/DigestHistory.sol";
 import "../utils/ZgsSpec.sol";
 import "../interfaces/IMarket.sol";
 import "../interfaces/IReward.sol";
 import "../interfaces/IFlow.sol";
-import "../interfaces/AddressBook.sol";
+import "../security/PauseControl.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract Flow is Pausable, IFlow, IncrementalMerkleTree {
+contract Flow is IFlow, PauseControl, Initializable, IncrementalMerkleTree {
     using SubmissionLibrary for Submission;
     using SafeERC20 for IERC20;
 
-    uint256 private constant MAX_DEPTH = 64;
-    uint256 private constant ROOT_AVAILABLE_WINDOW = 20;
+    // reserved storage slots for base contract upgrade in future
+    uint[50] private __gap;
 
-    bytes32 private constant EMPTY_HASH =
-        hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
+    // immutables
+    uint private constant MAX_DEPTH = 64;
+    uint private constant ROOT_AVAILABLE_WINDOW = 20;
 
-    AddressBook public immutable book;
+    bytes32 private constant EMPTY_HASH = hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
+
     IDigestHistory public immutable rootHistory;
-    uint256 public immutable blocksPerEpoch;
-    uint256 public immutable firstBlock;
+    uint public immutable blocksPerEpoch;
+    uint public immutable firstBlock;
 
-    uint256 public submissionIndex;
-    uint256 public epoch;
-    uint256 public epochStartPosition;
+    // states
+    address payable public market;
+
+    uint public submissionIndex;
+    uint public epoch;
+    uint public epochStartPosition;
 
     MineContext private context;
     mapping(bytes32 => EpochRange) private epochRanges;
@@ -41,17 +46,19 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
 
     error InvalidSubmission();
 
-    constructor(
-        address book_,
-        uint256 blocksPerEpoch_,
-        uint256 deployDelay_
-    ) IncrementalMerkleTree(bytes32(0x0)) {
-        epoch = 0;
+    constructor(uint blocksPerEpoch_, uint deployDelay_) {
         blocksPerEpoch = blocksPerEpoch_;
         rootHistory = new DigestHistory(ROOT_AVAILABLE_WINDOW);
         firstBlock = block.number + deployDelay_;
+    }
 
-        book = AddressBook(book_);
+    function _initialize(address market_) internal virtual {
+        // initialize incremental merkle tree
+        IncrementalMerkleTree._initialize(bytes32(0x0));
+        // initialize flow
+        market = payable(market_);
+
+        epoch = 0;
 
         context = MineContext({
             epoch: 0,
@@ -61,6 +68,13 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
             blockDigest: EMPTY_HASH,
             digest: EMPTY_HASH
         });
+        // initialize admin and pause control
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(PAUSER_ROLE, msg.sender);
+    }
+
+    function initialize(address market_) public virtual onlyInitializeOnce {
+        _initialize(market_);
     }
 
     modifier launched() {
@@ -68,30 +82,22 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         _;
     }
 
-    function batchSubmit(Submission[] memory submissions)
+    function batchSubmit(
+        Submission[] memory submissions
+    )
         public
         payable
         whenNotPaused
         launched
-        returns (
-            uint256[] memory indexes,
-            bytes32[] memory digests,
-            uint256[] memory startIndexes,
-            uint256[] memory lengths
-        )
+        returns (uint[] memory indexes, bytes32[] memory digests, uint[] memory startIndexes, uint[] memory lengths)
     {
-        uint256 len = submissions.length;
-        indexes = new uint256[](len);
+        uint len = submissions.length;
+        indexes = new uint[](len);
         digests = new bytes32[](len);
-        startIndexes = new uint256[](len);
-        lengths = new uint256[](len);
-        for (uint256 i = 0; i < len; ++i) {
-            (
-                uint256 index,
-                bytes32 digest,
-                uint256 startIndex,
-                uint256 length
-            ) = submit(submissions[i]);
+        startIndexes = new uint[](len);
+        lengths = new uint[](len);
+        for (uint i = 0; i < len; ++i) {
+            (uint index, bytes32 digest, uint startIndex, uint length) = submit(submissions[i]);
             indexes[i] = index;
             digests[i] = digest;
             startIndexes[i] = startIndex;
@@ -99,31 +105,22 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         }
     }
 
-    function _beforeSubmit(uint256 sectors) internal virtual {}
+    function _beforeSubmit(uint sectors) internal virtual {}
 
-    function submit(Submission memory submission)
-        public
-        payable
-        whenNotPaused
-        launched
-        returns (
-            uint256,
-            bytes32,
-            uint256,
-            uint256
-        )
-    {
+    function submit(
+        Submission memory submission
+    ) public payable whenNotPaused launched returns (uint, bytes32, uint, uint) {
         require(submission.valid(), "Invalid submission");
 
-        uint256 length = submission.size();
+        uint length = submission.size();
         _beforeSubmit(length);
 
         makeContext();
 
-        uint256 startIndex = _insertNodeList(submission);
+        uint startIndex = _insertNodeList(submission);
 
         bytes32 digest = submission.digest();
-        uint256 index = submissionIndex;
+        uint index = submissionIndex;
         submissionIndex += 1;
 
         emit Submit(msg.sender, digest, index, startIndex, length, submission);
@@ -131,28 +128,25 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         return (index, digest, startIndex, length);
     }
 
-    function _insertNodeList(Submission memory submission)
-        internal
-        returns (uint256 startIndex)
-    {
-        uint256 previousLength = currentLength;
-        for (uint256 i = 0; i < submission.nodes.length; i++) {
+    function _insertNodeList(Submission memory submission) internal returns (uint startIndex) {
+        uint previousLength = currentLength;
+        for (uint i = 0; i < submission.nodes.length; i++) {
             bytes32 nodeRoot = submission.nodes[i].root;
-            uint256 height = submission.nodes[i].height;
-            uint256 nodeStartIndex = _insertNode(nodeRoot, height);
+            uint height = submission.nodes[i].height;
+            uint nodeStartIndex = _insertNode(nodeRoot, height);
             if (i == 0) {
                 startIndex = nodeStartIndex;
             }
         }
 
-        uint256 paddedLength = startIndex - previousLength;
-        uint256 chargedLength = currentLength - startIndex;
+        uint paddedLength = startIndex - previousLength;
+        uint chargedLength = currentLength - startIndex;
 
-        book.market().chargeFee(previousLength, chargedLength, paddedLength);
+        IMarket(market).chargeFee(previousLength, chargedLength, paddedLength);
     }
 
     function _makeContext() internal returns (bool) {
-        uint256 nextEpochStart;
+        uint nextEpochStart;
         unchecked {
             nextEpochStart = firstBlock + (epoch + 1) * blocksPerEpoch;
         }
@@ -162,7 +156,7 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         }
         commitRoot();
         bytes32 currentRoot = root();
-        uint256 index = rootHistory.insert(currentRoot);
+        uint index = rootHistory.insert(currentRoot);
         assert(index == epoch);
 
         bytes32 contextDigest;
@@ -173,22 +167,13 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
             blockDigest = EMPTY_HASH;
         } else {
             blockDigest = blockhash(nextEpochStart);
-            contextDigest = keccak256(
-                abi.encode(blockDigest, currentRoot, currentLength)
-            );
+            contextDigest = keccak256(abi.encode(blockDigest, currentRoot, currentLength));
 
             uint128 startPosition = uint128(epochStartPosition);
             uint128 endPosition = uint128(currentLength);
-            epochRanges[contextDigest] = EpochRange({
-                start: startPosition,
-                end: endPosition
-            });
+            epochRanges[contextDigest] = EpochRange({start: startPosition, end: endPosition});
             epochRangeHistory.push(
-                EpochRangeWithContextDigest({
-                    start: startPosition,
-                    end: endPosition,
-                    digest: contextDigest
-                })
+                EpochRangeWithContextDigest({start: startPosition, end: endPosition, digest: contextDigest})
             );
 
             epochStartPosition = currentLength;
@@ -205,14 +190,7 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
             digest: contextDigest
         });
 
-        emit NewEpoch(
-            msg.sender,
-            epoch,
-            currentRoot,
-            submissionIndex,
-            currentLength,
-            contextDigest
-        );
+        emit NewEpoch(msg.sender, epoch, currentRoot, submissionIndex, currentLength, contextDigest);
         return true;
     }
 
@@ -220,27 +198,23 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         while (_makeContext()) {}
     }
 
-    function makeContextFixedTimes(uint256 cnt) public launched {
-        for (uint256 i = 0; i <= cnt; ++i) {
+    function makeContextFixedTimes(uint cnt) public launched {
+        for (uint i = 0; i <= cnt; ++i) {
             if (!_makeContext()) {
                 return;
             }
         }
     }
 
-    function queryContextAtPosition(uint128 targetPosition)
-        external
-        returns (EpochRangeWithContextDigest memory range)
-    {
+    function queryContextAtPosition(
+        uint128 targetPosition
+    ) external returns (EpochRangeWithContextDigest memory range) {
         makeContext();
-        require(
-            targetPosition < currentLength,
-            "Queried position exceeds upper bound"
-        );
-        uint256 minIndex = 0;
-        uint256 maxIndex = epochRangeHistory.length;
+        require(targetPosition < currentLength, "Queried position exceeds upper bound");
+        uint minIndex = 0;
+        uint maxIndex = epochRangeHistory.length;
         while (maxIndex > minIndex) {
-            uint256 curIndex = (maxIndex + minIndex) / 2;
+            uint curIndex = (maxIndex + minIndex) / 2;
             range = epochRangeHistory[curIndex];
             if (targetPosition >= range.end) {
                 minIndex = curIndex + 1;
@@ -254,11 +228,7 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         require(false, "Can not find proper context");
     }
 
-    function makeContextWithResult()
-        external
-        launched
-        returns (MineContext memory)
-    {
+    function makeContextWithResult() external launched returns (MineContext memory) {
         makeContext();
         return getContext();
     }
@@ -268,15 +238,11 @@ contract Flow is Pausable, IFlow, IncrementalMerkleTree {
         return _context;
     }
 
-    function getEpochRange(bytes32 digest)
-        external
-        view
-        returns (EpochRange memory)
-    {
+    function getEpochRange(bytes32 digest) external view returns (EpochRange memory) {
         return epochRanges[digest];
     }
 
-    function numSubmissions() external view returns (uint256) {
+    function numSubmissions() external view returns (uint) {
         return submissionIndex;
     }
 }

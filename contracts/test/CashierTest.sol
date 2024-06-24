@@ -7,45 +7,41 @@ import "../token/MockHackToken.sol";
 
 contract CashierTest is Cashier {
     MockHackToken public immutable zgsToken;
-    uint256 public flowLength;
+    uint public flowLength;
 
-    constructor(
-        address book,
-        address uploadToken,
-        address stake,
-        address zgsToken_
-    ) payable Cashier(book, uploadToken, stake) {
+    constructor(address zgsToken_) payable {
         zgsToken = MockHackToken(zgsToken_);
+    }
+
+    function initialize(
+        address flow_,
+        address mine_,
+        address reward_,
+        address uploadToken_,
+        address stake_
+    ) public payable override onlyInitializeOnce {
+        Cashier._initialize(flow_, mine_, reward_, uploadToken_, stake_);
         flowLength = 1;
     }
 
-    function updateTotalSubmission(uint256 sectors) external {
+    function updateTotalSubmission(uint sectors) external {
         flowLength += sectors;
         _updateDrippingRate(flowLength);
     }
 
-    function chargeFeeTest(uint256 uploadSectors, uint256 paddingSectors)
-        external
-    {
+    function chargeFeeTest(uint uploadSectors, uint paddingSectors) external {
         chargeFee(flowLength, uploadSectors, paddingSectors);
         flowLength += uploadSectors + paddingSectors;
     }
 
-    function setGauge(int256 gauge_) external {
+    function setGauge(int gauge_) external {
         _tick();
         gauge = gauge_;
     }
 
-    function _receiveFee(uint256 actualFee, uint256 priorFee)
-        internal
-        override
-    {
+    function _receiveFee(uint actualFee, uint priorFee) internal override {
         if (actualFee > priorFee) {
-            zgsToken.transferFrom(
-                msg.sender,
-                address(this),
-                actualFee - priorFee
-            );
+            zgsToken.transferFrom(msg.sender, address(this), actualFee - priorFee);
         }
         if (priorFee > 0) {
             zgsToken.transferFrom(msg.sender, stake, priorFee);
