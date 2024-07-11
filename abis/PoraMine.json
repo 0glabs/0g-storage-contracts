@@ -34,6 +34,56 @@
     "inputs": [
       {
         "indexed": true,
+        "internalType": "uint256",
+        "name": "epoch",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "minerId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "epochIndex",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "recallPosition",
+        "type": "uint256"
+      }
+    ],
+    "name": "NewSubmission",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
         "internalType": "bytes32",
         "name": "minerId",
         "type": "bytes32"
@@ -53,19 +103,6 @@
     ],
     "name": "UpdateMinerId",
     "type": "event"
-  },
-  {
-    "inputs": [],
-    "name": "adjustRatio",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
   },
   {
     "inputs": [
@@ -139,7 +176,7 @@
             "type": "bytes32[]"
           }
         ],
-        "internalType": "struct PoraMine.PoraAnswer",
+        "internalType": "struct MineLib.PoraAnswer",
         "name": "answer",
         "type": "tuple"
       },
@@ -207,6 +244,32 @@
   },
   {
     "inputs": [],
+    "name": "canSubmit",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "currentSubmissions",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "dataProofEnabled",
     "outputs": [
       {
@@ -220,7 +283,20 @@
   },
   {
     "inputs": [],
-    "name": "fixedQuality",
+    "name": "difficultyAdjustRatio",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "fixedDifficulty",
     "outputs": [
       {
         "internalType": "bool",
@@ -248,12 +324,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "initRate",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "adjustRatio_",
+        "name": "difficulty",
         "type": "uint256"
       },
       {
@@ -299,88 +370,13 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "components": [
-          {
-            "internalType": "bytes32",
-            "name": "contextDigest",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "nonce",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "minerId",
-            "type": "bytes32"
-          },
-          {
-            "components": [
-              {
-                "internalType": "uint256",
-                "name": "startPosition",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "mineLength",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint64",
-                "name": "shardId",
-                "type": "uint64"
-              },
-              {
-                "internalType": "uint64",
-                "name": "shardMask",
-                "type": "uint64"
-              }
-            ],
-            "internalType": "struct RecallRange",
-            "name": "range",
-            "type": "tuple"
-          },
-          {
-            "internalType": "uint256",
-            "name": "recallPosition",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "sealOffset",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "sealedContextDigest",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32[128]",
-            "name": "sealedData",
-            "type": "bytes32[128]"
-          },
-          {
-            "internalType": "bytes32[]",
-            "name": "merkleProof",
-            "type": "bytes32[]"
-          }
-        ],
-        "internalType": "struct PoraMine.PoraAnswer",
-        "name": "answer",
-        "type": "tuple"
-      }
-    ],
-    "name": "pora",
+    "inputs": [],
+    "name": "owner",
     "outputs": [
       {
-        "internalType": "bytes32",
+        "internalType": "address",
         "name": "",
-        "type": "bytes32"
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -458,17 +454,12 @@
             "type": "bytes32[]"
           }
         ],
-        "internalType": "struct PoraMine.PoraAnswer",
+        "internalType": "struct MineLib.PoraAnswer",
         "name": "answer",
         "type": "tuple"
-      },
-      {
-        "internalType": "bytes32[128]",
-        "name": "unsealedData",
-        "type": "bytes32[128]"
       }
     ],
-    "name": "recoverMerkleRoot",
+    "name": "pora",
     "outputs": [
       {
         "internalType": "bytes32",
@@ -476,7 +467,27 @@
         "type": "bytes32"
       }
     ],
-    "stateMutability": "pure",
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "poraTarget",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -526,6 +537,45 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "difficultyAdjustRatio_",
+        "type": "uint256"
+      }
+    ],
+    "name": "setDifficultyAdjustRatio",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "targetMineBlocks_",
+        "type": "uint256"
+      }
+    ],
+    "name": "setTargetMineBlocks",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "targetSubmissions_",
+        "type": "uint256"
+      }
+    ],
+    "name": "setTargetSubmissions",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "components": [
           {
             "internalType": "bytes32",
@@ -595,7 +645,7 @@
             "type": "bytes32[]"
           }
         ],
-        "internalType": "struct PoraMine.PoraAnswer",
+        "internalType": "struct MineLib.PoraAnswer",
         "name": "answer",
         "type": "tuple"
       }
@@ -607,7 +657,33 @@
   },
   {
     "inputs": [],
-    "name": "targetQuality",
+    "name": "targetMineBlocks",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "targetSubmissions",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "targetSubmissionsNextEpoch",
     "outputs": [
       {
         "internalType": "uint256",
@@ -639,89 +715,14 @@
   {
     "inputs": [
       {
-        "components": [
-          {
-            "internalType": "bytes32",
-            "name": "contextDigest",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "nonce",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "minerId",
-            "type": "bytes32"
-          },
-          {
-            "components": [
-              {
-                "internalType": "uint256",
-                "name": "startPosition",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "mineLength",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint64",
-                "name": "shardId",
-                "type": "uint64"
-              },
-              {
-                "internalType": "uint64",
-                "name": "shardMask",
-                "type": "uint64"
-              }
-            ],
-            "internalType": "struct RecallRange",
-            "name": "range",
-            "type": "tuple"
-          },
-          {
-            "internalType": "uint256",
-            "name": "recallPosition",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "sealOffset",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "sealedContextDigest",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32[128]",
-            "name": "sealedData",
-            "type": "bytes32[128]"
-          },
-          {
-            "internalType": "bytes32[]",
-            "name": "merkleProof",
-            "type": "bytes32[]"
-          }
-        ],
-        "internalType": "struct PoraMine.PoraAnswer",
-        "name": "answer",
-        "type": "tuple"
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
       }
     ],
-    "name": "unseal",
-    "outputs": [
-      {
-        "internalType": "bytes32[128]",
-        "name": "unsealedData",
-        "type": "bytes32[128]"
-      }
-    ],
-    "stateMutability": "pure",
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   }
 ]
