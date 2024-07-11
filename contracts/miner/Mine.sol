@@ -19,116 +19,122 @@ import "./MineLib.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract PoraMine is Initializable {
+contract PoraMine is Initializable, Ownable {
     using RecallRangeLib for RecallRange;
 
-    // immutables
+    // constants
     bytes32 private constant EMPTY_HASH = hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
 
-    uint private constant DIFFICULTY_ADJUST_RATIO = 20;
-    uint private constant TARGET_MINE_BLOCK = 100;
-
-    // Settings bit
-    uint private constant NO_DATA_SEAL = 0x1;
-    uint private constant NO_DATA_PROOF = 0x2;
-    uint private constant FIXED_QUALITY = 0x4;
-
-    // Options for ZeroGStorage-mine development
+    // Options for ZeroGStorage-mine development & Setting bits
     bool public immutable sealDataEnabled;
     bool public immutable dataProofEnabled;
-    bool public immutable fixedQuality;
+    bool public immutable fixedDifficulty;
+    uint private constant NO_DATA_SEAL = 0x1;
+    uint private constant NO_DATA_PROOF = 0x2;
+    uint private constant FIXED_DIFFICULTY = 0x4;
 
-    // states
+    // Deferred initializd fields
     address public flow;
     address public reward;
 
-    uint public adjustRatio;
+    // Configurable parameters
+    uint public targetMineBlocks = 100;
+    uint public targetSubmissions = 10;
+    uint public targetSubmissionsNextEpoch = 10;
+    uint public difficultyAdjustRatio = 20;
 
+    // Contract state
     uint public lastMinedEpoch = 0;
-    uint public targetQuality;
+    uint public currentSubmissions = 0;
+    uint public poraTarget;
+
     mapping(bytes32 => address) public beneficiaries;
 
     event NewMinerId(bytes32 indexed minerId, address indexed beneficiary);
     event UpdateMinerId(bytes32 indexed minerId, address indexed from, address indexed to);
+    event NewSubmission(uint indexed epoch, bytes32 indexed minerId, uint epochIndex, uint recallPosition);
 
     constructor(uint settings) {
         sealDataEnabled = (settings & NO_DATA_SEAL == 0);
         dataProofEnabled = (settings & NO_DATA_PROOF == 0);
-        fixedQuality = (settings & FIXED_QUALITY != 0);
+        fixedDifficulty = (settings & FIXED_DIFFICULTY != 0);
     }
 
-    function initialize(uint initRate, uint adjustRatio_, address flow_, address reward_) public onlyInitializeOnce {
-        targetQuality = type(uint).max / initRate / 300;
-        adjustRatio = adjustRatio_;
-        if (fixedQuality) {
-            targetQuality = type(uint).max;
+    function initialize(uint difficulty, address flow_, address reward_) public onlyInitializeOnce {
+        poraTarget = type(uint).max / difficulty;
+        if (fixedDifficulty) {
+            poraTarget = type(uint).max;
         }
         flow = flow_;
         reward = reward_;
     }
 
-    struct PoraAnswer {
-        bytes32 contextDigest;
-        bytes32 nonce;
-        bytes32 minerId;
-        RecallRange range;
-        uint recallPosition;
-        uint sealOffset;
-        bytes32 sealedContextDigest;
-        bytes32[UNITS_PER_SEAL] sealedData;
-        bytes32[] merkleProof;
-    }
-
-    function submit(PoraAnswer memory answer) public {
+    function submit(MineLib.PoraAnswer memory answer) public {
         // Step 1: check miner ID
         require(answer.minerId != bytes32(0), "MinerId cannot be zero");
         address beneficiary = beneficiaries[answer.minerId];
         require(beneficiary != address(0), "MinerId does not registered");
 
+        // Step 2: maintain context
         MineContext memory context = IFlow(flow).makeContextWithResult();
+        require(context.epoch >= lastMinedEpoch, "Internal error: epoch number decrease");
+        if (context.epoch > lastMinedEpoch && lastMinedEpoch > 0) {
+            if (currentSubmissions < targetSubmissions) {
+                // Not enough submissions in the whole epoch
+                _adjustDifficultyOnIncompleteEpoch();
+            }
+            currentSubmissions = 0;
+            targetSubmissions = targetSubmissionsNextEpoch;
+        }
 
-        // Step 2: basic check for submission
+        // Step 3: basic check for submission
         basicCheck(answer, context);
 
-        // Step 3: check merkle root
+        // Step 4: configurable check
         bytes32[UNITS_PER_SEAL] memory unsealedData;
         if (sealDataEnabled) {
-            unsealedData = unseal(answer);
+            unsealedData = MineLib.unseal(answer);
         } else {
             unsealedData = answer.sealedData;
         }
         if (dataProofEnabled) {
-            bytes32 flowRoot = recoverMerkleRoot(answer, unsealedData);
+            bytes32 flowRoot = MineLib.recoverMerkleRoot(answer, unsealedData);
             require(flowRoot == context.flowRoot, "Inconsistent merkle root");
         }
         delete unsealedData;
 
-        // Step 4: compute PoRA quality
-        bytes32 quality = pora(answer);
-        require(uint(quality) <= targetQuality / answer.range.numShards(), "Do not reach target quality");
+        // Step 5: compute PoRA hash
+        bytes32 poraOutput = pora(answer);
+        require(uint(poraOutput) <= poraTarget / answer.range.numShards(), "Do not reach target quality");
 
-        // Step 5: adjust quality
-        if (!fixedQuality) {
-            _adjustQuality(context);
-        }
-
-        // Step 6: reward fee
+        // Step 6: reward
         IReward(reward).claimMineReward(
             answer.recallPosition / SECTORS_PER_PRICE,
             payable(beneficiary),
             answer.minerId
         );
 
-        // Step 7: finish
+        // Step 7: bump submission
+        emit NewSubmission(context.epoch, answer.minerId, currentSubmissions, answer.recallPosition);
         lastMinedEpoch = context.epoch;
+        currentSubmissions += 1;
+        if (currentSubmissions < targetSubmissions) {
+            return;
+        }
+
+        // Step 8: adjust quality
+        if (!fixedDifficulty) {
+            _adjustDifficulty(context);
+        }
     }
 
-    function basicCheck(PoraAnswer memory answer, MineContext memory context) public view {
+    function basicCheck(MineLib.PoraAnswer memory answer, MineContext memory context) public view {
         // Check basic field
         require(context.digest == answer.contextDigest, "Inconsistent mining digest");
         require(context.digest != EMPTY_HASH, "Empty digest can not mine");
-        require(context.epoch > lastMinedEpoch, "Epoch has been mined");
+        require(currentSubmissions < targetSubmissions, "Epoch has enough submissions");
 
         // Check validity of recall range
         uint maxLength = (context.flowLength / SECTORS_PER_LOAD) * SECTORS_PER_LOAD;
@@ -143,7 +149,7 @@ contract PoraMine is Initializable {
         );
     }
 
-    function pora(PoraAnswer memory answer) public view returns (bytes32) {
+    function pora(MineLib.PoraAnswer memory answer) public view returns (bytes32) {
         require(answer.minerId != bytes32(0x0), "Miner ID cannot be empty");
 
         bytes32[4] memory seedInput = [answer.minerId, answer.nonce, answer.contextDigest, answer.range.digest()];
@@ -164,67 +170,6 @@ contract PoraMine is Initializable {
         return MineLib.computePoraHash(answer.sealOffset, padSeed, mixedData);
     }
 
-    function unseal(PoraAnswer memory answer) public pure returns (bytes32[UNITS_PER_SEAL] memory unsealedData) {
-        unsealedData[0] =
-            answer.sealedData[0] ^
-            keccak256(abi.encode(answer.minerId, answer.sealedContextDigest, answer.recallPosition));
-        for (uint i = 1; i < UNITS_PER_SEAL; i += 1) {
-            unsealedData[i] = answer.sealedData[i] ^ keccak256(abi.encode(answer.sealedData[i - 1]));
-        }
-    }
-
-    function recoverMerkleRoot(
-        PoraAnswer memory answer,
-        bytes32[UNITS_PER_SEAL] memory unsealedData
-    ) public pure returns (bytes32) {
-        // console.log("Compute leaf");
-        // Compute leaf of hash
-        for (uint i = 0; i < UNITS_PER_SEAL; i += UNITS_PER_SECTOR) {
-            bytes32 x;
-            assembly {
-                x := keccak256(add(unsealedData, mul(i, 32)), 256 /*BYTES_PER_SECTOR*/)
-            }
-            unsealedData[i] = x;
-            // console.logBytes32(x);
-        }
-
-        for (uint i = UNITS_PER_SECTOR; i < UNITS_PER_SEAL; i <<= 1) {
-            // console.log("i=%d", i);
-            for (uint j = 0; j < UNITS_PER_SEAL; j += i << 1) {
-                bytes32 left = unsealedData[j];
-                bytes32 right = unsealedData[j + i];
-                unsealedData[j] = keccak256(abi.encode(left, right));
-                // console.logBytes32(unsealedData[j]);
-            }
-        }
-        bytes32 currentHash = unsealedData[0];
-        delete unsealedData;
-
-        // console.log("Seal root");
-        // console.logBytes32(currentHash);
-
-        uint unsealedIndex = answer.recallPosition / SECTORS_PER_SEAL;
-
-        for (uint i = 0; i < answer.merkleProof.length; i += 1) {
-            bytes32 left;
-            bytes32 right;
-            if (unsealedIndex % 2 == 0) {
-                left = currentHash;
-                right = answer.merkleProof[i];
-            } else {
-                left = answer.merkleProof[i];
-                right = currentHash;
-            }
-            currentHash = keccak256(abi.encode(left, right));
-            // console.log("sibling");
-            // console.logBytes32(answer.merkleProof[i]);
-            // console.log("current");
-            // console.logBytes32(currentHash);
-            unsealedIndex /= 2;
-        }
-        return currentHash;
-    }
-
     function requestMinerId(address beneficiary, uint64 seed) public {
         bytes32 minerId = keccak256(abi.encodePacked(blockhash(block.number - 1), msg.sender, seed));
         require(beneficiaries[minerId] == address(0), "MinerId has registered");
@@ -238,14 +183,24 @@ contract PoraMine is Initializable {
         emit UpdateMinerId(minerId, msg.sender, to);
     }
 
-    function _adjustQuality(MineContext memory context) internal {
+    function _adjustDifficulty(MineContext memory context) internal {
         uint miningBlocks = block.number - context.mineStart;
 
         // Remove least significant 16 bits to avoid overflow
-        uint scaledTarget = targetQuality >> 16;
-        uint scaledExpected = Math.mulDiv(scaledTarget, miningBlocks, TARGET_MINE_BLOCK);
+        uint scaledTarget = poraTarget >> 16;
+        uint scaledExpected = Math.mulDiv(scaledTarget, miningBlocks, targetMineBlocks);
 
-        uint n = DIFFICULTY_ADJUST_RATIO;
+        _adjustDifficultyInner(scaledExpected);
+    }
+
+    function _adjustDifficultyOnIncompleteEpoch() internal {
+        _adjustDifficultyInner(type(uint).max >> 16);
+    }
+
+    function _adjustDifficultyInner(uint scaledExpected) internal {
+        uint scaledTarget = poraTarget >> 16;
+
+        uint n = difficultyAdjustRatio;
 
         uint scaledAdjusted = (scaledTarget * (n - 1) + scaledExpected) / n;
 
@@ -261,6 +216,26 @@ contract PoraMine is Initializable {
             scaledAdjusted = type(uint).max >> 16;
         }
 
-        targetQuality = scaledAdjusted << 16;
+        poraTarget = scaledAdjusted << 16;
+    }
+
+    function setTargetMineBlocks(uint targetMineBlocks_) external onlyOwner {
+        targetMineBlocks = targetMineBlocks_;
+    }
+
+    function setTargetSubmissions(uint targetSubmissions_) external onlyOwner {
+        targetSubmissionsNextEpoch = targetSubmissions_;
+        if (lastMinedEpoch == 0) {
+            targetSubmissions = targetSubmissions_;
+        }
+    }
+
+    function setDifficultyAdjustRatio(uint difficultyAdjustRatio_) external onlyOwner {
+        difficultyAdjustRatio = difficultyAdjustRatio_;
+    }
+
+    function canSubmit() external returns (bool) {
+        MineContext memory context = IFlow(flow).makeContextWithResult();
+        return context.epoch > lastMinedEpoch || currentSubmissions < targetSubmissions;
     }
 }

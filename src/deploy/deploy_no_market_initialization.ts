@@ -19,8 +19,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     if (!(await poraMineTest_.initialized())) {
         await (
             await poraMineTest_.initialize(
-                config.mineConfigs.initHashRate,
-                config.mineConfigs.adjustRatio,
+                config.mineConfigs.initDifficulty,
                 await flow_.getAddress(),
                 await dummyReward_.getAddress()
             )
