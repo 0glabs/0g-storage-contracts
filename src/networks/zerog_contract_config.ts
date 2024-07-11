@@ -3,8 +3,7 @@ import { NetworkConfigs } from "../config";
 export const ZerogContractConfigs: NetworkConfigs = {
     mineConfigs: {
         settings: 0,
-        initHashRate: 6000,
-        adjustRatio: 20,
+        initDifficulty: 180000,
     },
     blocksPerEpoch: 1200,
     lifetimeMonth: 3,

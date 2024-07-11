@@ -8,6 +8,7 @@ import { AbiCoder, keccak256 } from "ethers";
 import { PoraMineTest } from "../typechain-types";
 import { genLeaves, MockMerkle } from "./utils/mockMerkleTree";
 import { Snapshot } from "./utils/snapshot";
+import { MockContract } from "@clrfund/waffle-mock-contract";
 
 const abiCoder = new AbiCoder();
 
@@ -69,7 +70,8 @@ describe("Miner", function () {
 
         const mineABI = await ethers.getContractFactory("PoraMineTest");
         mineContract = await mineABI.deploy(0);
-        await mineContract.initialize(1, 1, await mockFlow.getAddress(), await mockReward.getAddress());
+        await mineContract.initialize(1, await mockFlow.getAddress(), await mockReward.getAddress());
+        await mineContract.setDifficultyAdjustRatio(1);
 
         minerId = hexToBuffer(await keccak("minerId", 256));
         await mineContract.setMiner(minerId);

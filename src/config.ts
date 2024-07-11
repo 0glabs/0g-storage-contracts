@@ -3,9 +3,8 @@ import { ZerogTestnetContractConfigs } from "./networks/zerog_testnet_contract_c
 
 export interface MineConfigs {
     settings: number;
-    // The initial hash rate for PoRA mining.
-    initHashRate: number;
-    adjustRatio: number;
+    // The initial difficulty for PoRA mining.
+    initDifficulty: number;
 }
 
 export interface NetworkConfigs {
@@ -20,8 +19,7 @@ export interface NetworkConfigs {
 export const DefaultConfig: NetworkConfigs = {
     mineConfigs: {
         settings: 0,
-        initHashRate: 1000,
-        adjustRatio: 20,
+        initDifficulty: 30000,
     },
     blocksPerEpoch: 1000000000,
     lifetimeMonth: 3,

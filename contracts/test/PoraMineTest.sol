@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "../miner/Mine.sol";
+import "../miner/MineLib.sol";
 
 contract PoraMineTest is PoraMine {
     // 1, 1, settings | 0x4
@@ -12,6 +13,19 @@ contract PoraMineTest is PoraMine {
     }
 
     function setQuality(uint _targetQuality) external {
-        targetQuality = _targetQuality;
+        poraTarget = _targetQuality;
+    }
+
+    function unseal(
+        MineLib.PoraAnswer memory answer
+    ) external pure returns (bytes32[UNITS_PER_SEAL] memory unsealedData) {
+        return MineLib.unseal(answer);
+    }
+
+    function recoverMerkleRoot(
+        MineLib.PoraAnswer memory answer,
+        bytes32[UNITS_PER_SEAL] memory unsealedData
+    ) external pure returns (bytes32) {
+        return MineLib.recoverMerkleRoot(answer, unsealedData);
     }
 }
