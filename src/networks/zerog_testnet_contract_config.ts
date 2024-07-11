@@ -1,6 +1,6 @@
 import { NetworkConfigs } from "../config";
 
-export const ZerogContractConfigs: NetworkConfigs = {
+export const ZerogTestnetContractConfigs: NetworkConfigs = {
     mineConfigs: {
         settings: 0,
         initDifficulty: 180000,
