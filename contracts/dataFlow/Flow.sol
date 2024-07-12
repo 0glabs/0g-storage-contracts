@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./IncrementalMerkleTree.sol";
+import "./FlowTreeLib.sol";
 import "../utils/IDigestHistory.sol";
 import "../utils/Initializable.sol";
 import "../utils/DigestHistory.sol";
@@ -16,12 +16,10 @@ import "../security/PauseControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract Flow is IFlow, PauseControl, Initializable, IncrementalMerkleTree {
+contract Flow is IFlow, PauseControl, Initializable {
     using SubmissionLibrary for Submission;
     using SafeERC20 for IERC20;
-
-    // reserved storage slots for base contract upgrade in future
-    uint[50] private __gap;
+    using FlowTreeLib for FlowTree;
 
     // immutables
     uint private constant MAX_DEPTH = 64;
@@ -35,6 +33,9 @@ contract Flow is IFlow, PauseControl, Initializable, IncrementalMerkleTree {
 
     // states
     address payable public market;
+
+    FlowTree public tree;
+    uint[50] private __gap;
 
     uint public submissionIndex;
     uint public epoch;
@@ -54,7 +55,7 @@ contract Flow is IFlow, PauseControl, Initializable, IncrementalMerkleTree {
 
     function _initialize(address market_) internal virtual {
         // initialize incremental merkle tree
-        IncrementalMerkleTree._initialize(bytes32(0x0));
+        tree.initialize(bytes32(0x0));
         // initialize flow
         market = payable(market_);
 
@@ -63,7 +64,7 @@ contract Flow is IFlow, PauseControl, Initializable, IncrementalMerkleTree {
         context = MineContext({
             epoch: 0,
             mineStart: firstBlock,
-            flowRoot: root(),
+            flowRoot: tree.root(),
             flowLength: 1,
             blockDigest: EMPTY_HASH,
             digest: EMPTY_HASH
@@ -129,18 +130,18 @@ contract Flow is IFlow, PauseControl, Initializable, IncrementalMerkleTree {
     }
 
     function _insertNodeList(Submission memory submission) internal returns (uint startIndex) {
-        uint previousLength = currentLength;
+        uint previousLength = tree.currentLength;
         for (uint i = 0; i < submission.nodes.length; i++) {
             bytes32 nodeRoot = submission.nodes[i].root;
             uint height = submission.nodes[i].height;
-            uint nodeStartIndex = _insertNode(nodeRoot, height);
+            uint nodeStartIndex = tree.insertNode(nodeRoot, height);
             if (i == 0) {
                 startIndex = nodeStartIndex;
             }
         }
 
         uint paddedLength = startIndex - previousLength;
-        uint chargedLength = currentLength - startIndex;
+        uint chargedLength = tree.currentLength - startIndex;
 
         IMarket(market).chargeFee(previousLength, chargedLength, paddedLength);
     }
@@ -154,8 +155,8 @@ contract Flow is IFlow, PauseControl, Initializable, IncrementalMerkleTree {
         if (nextEpochStart >= block.number) {
             return false;
         }
-        commitRoot();
-        bytes32 currentRoot = root();
+        tree.commitRoot();
+        bytes32 currentRoot = tree.root();
         uint index = rootHistory.insert(currentRoot);
         assert(index == epoch);
 
@@ -167,16 +168,16 @@ contract Flow is IFlow, PauseControl, Initializable, IncrementalMerkleTree {
             blockDigest = EMPTY_HASH;
         } else {
             blockDigest = blockhash(nextEpochStart);
-            contextDigest = keccak256(abi.encode(blockDigest, currentRoot, currentLength));
+            contextDigest = keccak256(abi.encode(blockDigest, currentRoot, tree.currentLength));
 
             uint128 startPosition = uint128(epochStartPosition);
-            uint128 endPosition = uint128(currentLength);
+            uint128 endPosition = uint128(tree.currentLength);
             epochRanges[contextDigest] = EpochRange({start: startPosition, end: endPosition});
             epochRangeHistory.push(
                 EpochRangeWithContextDigest({start: startPosition, end: endPosition, digest: contextDigest})
             );
 
-            epochStartPosition = currentLength;
+            epochStartPosition = tree.currentLength;
         }
 
         epoch += 1;
@@ -185,12 +186,12 @@ contract Flow is IFlow, PauseControl, Initializable, IncrementalMerkleTree {
             epoch: epoch,
             mineStart: nextEpochStart,
             flowRoot: currentRoot,
-            flowLength: currentLength,
+            flowLength: tree.currentLength,
             blockDigest: blockDigest,
             digest: contextDigest
         });
 
-        emit NewEpoch(msg.sender, epoch, currentRoot, submissionIndex, currentLength, contextDigest);
+        emit NewEpoch(msg.sender, epoch, currentRoot, submissionIndex, tree.currentLength, contextDigest);
         return true;
     }
 
@@ -210,7 +211,7 @@ contract Flow is IFlow, PauseControl, Initializable, IncrementalMerkleTree {
         uint128 targetPosition
     ) external returns (EpochRangeWithContextDigest memory range) {
         makeContext();
-        require(targetPosition < currentLength, "Queried position exceeds upper bound");
+        require(targetPosition < tree.currentLength, "Queried position exceeds upper bound");
         uint minIndex = 0;
         uint maxIndex = epochRangeHistory.length;
         while (maxIndex > minIndex) {

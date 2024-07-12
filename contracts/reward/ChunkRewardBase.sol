@@ -7,15 +7,20 @@ import "../utils/OnlySender.sol";
 import "../utils/Initializable.sol";
 import "../interfaces/IReward.sol";
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 import "./Reward.sol";
 
-abstract contract ChunkRewardBase is IReward, OnlySender, Initializable {
+abstract contract ChunkRewardBase is IReward, Ownable, Initializable {
     using RewardLibrary for Reward;
 
     address public market;
     address public mine;
 
     mapping(uint => Reward) public rewards;
+
+    uint public totalDonations;
+    uint public singleDonation;
 
     function _initialize(address market_, address mine_) internal {
         market = market_;
@@ -42,20 +47,18 @@ abstract contract ChunkRewardBase is IReward, OnlySender, Initializable {
         bool finalizeLastChunk = (afterLength == (lastPricingIndex + 1) * SECTORS_PER_PRICE);
 
         if (firstPricingIndex == lastPricingIndex) {
-            rewards[firstPricingIndex].addReward(
-                (feePerPricingChunk * (afterLength - beforeLength)) / SECTORS_PER_PRICE,
-                finalizeLastChunk
-            );
+            rewards[firstPricingIndex].addReward(msg.value, finalizeLastChunk);
         } else {
             rewards[firstPricingIndex].addReward((feePerPricingChunk * firstPricingLength) / SECTORS_PER_PRICE, true);
-            rewards[lastPricingIndex].addReward(
-                (feePerPricingChunk * lastPricingLength) / SECTORS_PER_PRICE,
-                finalizeLastChunk
-            );
 
             for (uint i = firstPricingIndex + 1; i < lastPricingIndex; i++) {
                 rewards[i].addReward(feePerPricingChunk, true);
             }
+
+            rewards[lastPricingIndex].addReward(
+                (feePerPricingChunk * lastPricingLength) / SECTORS_PER_PRICE,
+                finalizeLastChunk
+            );
         }
     }
 
@@ -67,8 +70,12 @@ abstract contract ChunkRewardBase is IReward, OnlySender, Initializable {
         uint releasedReward = _releasedReward(reward);
         reward.updateReward(releasedReward);
         uint rewardAmount = reward.claimReward();
-
         rewards[pricingIndex] = reward;
+
+        uint approvedDonation = _donatedReward(pricingIndex, reward, rewardAmount);
+        uint actualDonation = totalDonations > approvedDonation ? approvedDonation : totalDonations;
+        rewardAmount += actualDonation;
+        totalDonations -= actualDonation;
 
         if (rewardAmount > 0) {
             beneficiary.transfer(rewardAmount);
@@ -76,5 +83,15 @@ abstract contract ChunkRewardBase is IReward, OnlySender, Initializable {
         }
     }
 
-    function _releasedReward(Reward memory reward) internal virtual returns (uint);
+    function setSingleDonation(uint singleDonation_) external onlyOwner {
+        singleDonation = singleDonation_;
+    }
+
+    function _releasedReward(Reward memory reward) internal view virtual returns (uint);
+
+    function _donatedReward(
+        uint pricingIndex,
+        Reward memory reward,
+        uint rewardAmount
+    ) internal view virtual returns (uint);
 }

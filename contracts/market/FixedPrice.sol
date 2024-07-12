@@ -7,12 +7,14 @@ import "../utils/MarketSpec.sol";
 import "../utils/Initializable.sol";
 
 import "@openzeppelin/contracts/utils/Context.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract FixedPrice is IMarket, Context, Initializable {
+contract FixedPrice is IMarket, Context, Ownable, Initializable {
     // reserved storage slots for base contract upgrade in future
     uint[50] private __gap;
 
     uint public pricePerSector;
+
     address public flow;
     address public reward;
 
@@ -20,6 +22,10 @@ contract FixedPrice is IMarket, Context, Initializable {
         pricePerSector = lifetimeMonthes * MONTH_ZGS_UNITS_PER_SECTOR;
         flow = flow_;
         reward = reward_;
+    }
+
+    function setPricePerSector(uint pricePerSector_) external onlyOwner {
+        pricePerSector = pricePerSector_;
     }
 
     function chargeFee(uint beforeLength, uint uploadSectors, uint paddingSectors) external {
