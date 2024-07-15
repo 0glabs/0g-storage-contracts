@@ -4,15 +4,19 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "../utils/ZgsSpec.sol";
 import "../utils/OnlySender.sol";
-import "../utils/Initializable.sol";
 import "../interfaces/IReward.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/PullPayment.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "./Reward.sol";
 
-abstract contract ChunkRewardBase is IReward, Ownable, Initializable {
+abstract contract ChunkRewardBase is IReward, PullPayment, OwnableUpgradeable {
     using RewardLibrary for Reward;
+
+    bool public initialized;
 
     address public market;
     address public mine;
@@ -22,20 +26,29 @@ abstract contract ChunkRewardBase is IReward, Ownable, Initializable {
     uint public totalDonations;
     uint public singleDonation;
 
-    function _initialize(address market_, address mine_) internal {
+    uint public serviceFeeRateBps;
+    address public treasury;
+
+    function initialize(address market_, address mine_) public initializer {
+        __Ownable_init();
+
         market = market_;
         mine = mine_;
-    }
 
-    function initialize(address market_, address mine_) public onlyInitializeOnce {
-        _initialize(market_, mine_);
+        initialized = true;
     }
 
     function fillReward(uint beforeLength, uint chargedSectors) external payable {
         require(_msgSender() == market, "Sender does not have permission");
 
+        uint serviceFee = (msg.value * serviceFeeRateBps) / 10000;
+        if (serviceFee > 0) {
+            Address.sendValue(payable(treasury), serviceFee);
+        }
+        uint restFee = msg.value - serviceFee;
+
         uint totalSectors = chargedSectors;
-        uint feePerPricingChunk = (msg.value * SECTORS_PER_PRICE) / totalSectors;
+        uint feePerPricingChunk = (restFee * SECTORS_PER_PRICE) / totalSectors;
         uint afterLength = beforeLength + totalSectors;
 
         uint firstPricingLength = SECTORS_PER_PRICE - (beforeLength % SECTORS_PER_PRICE);
@@ -78,13 +91,25 @@ abstract contract ChunkRewardBase is IReward, Ownable, Initializable {
         totalDonations -= actualDonation;
 
         if (rewardAmount > 0) {
-            beneficiary.transfer(rewardAmount);
+            _asyncTransfer(beneficiary, rewardAmount);
             emit DistributeReward(pricingIndex, beneficiary, rewardAmount);
         }
     }
 
     function setSingleDonation(uint singleDonation_) external onlyOwner {
         singleDonation = singleDonation_;
+    }
+
+    function setServiceFeeRate(uint bps) external onlyOwner {
+        serviceFeeRateBps = bps;
+    }
+
+    function setTreasury(address treasury_) external onlyOwner {
+        treasury = treasury_;
+    }
+
+    function donate() external payable {
+        totalDonations += msg.value;
     }
 
     function _releasedReward(Reward memory reward) internal view virtual returns (uint);

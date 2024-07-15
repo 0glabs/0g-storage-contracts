@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./FlowTreeLib.sol";
 import "../utils/IDigestHistory.sol";
-import "../utils/Initializable.sol";
+import "../utils/ZgInitializable.sol";
 import "../utils/DigestHistory.sol";
 import "../utils/ZgsSpec.sol";
 import "../interfaces/IMarket.sol";
@@ -16,14 +16,14 @@ import "../security/PauseControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract Flow is IFlow, PauseControl, Initializable {
+contract Flow is IFlow, PauseControl, ZgInitializable {
     using SubmissionLibrary for Submission;
     using SafeERC20 for IERC20;
     using FlowTreeLib for FlowTree;
 
     // immutables
     uint private constant MAX_DEPTH = 64;
-    uint private constant ROOT_AVAILABLE_WINDOW = 20;
+    uint private constant ROOT_AVAILABLE_WINDOW = 1000;
 
     bytes32 private constant EMPTY_HASH = hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
 

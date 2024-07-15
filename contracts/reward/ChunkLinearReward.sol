@@ -6,9 +6,8 @@ import "./Reward.sol";
 import "./ChunkRewardBase.sol";
 import "../utils/ZgsSpec.sol";
 import "../utils/MarketSpec.sol";
-import "../utils/Initializable.sol";
 
-contract ChunkLinearReward is Initializable, ChunkRewardBase {
+contract ChunkLinearReward is ChunkRewardBase {
     using RewardLibrary for Reward;
 
     // reserved storage slots for base contract upgrade in future

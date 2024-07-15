@@ -5,9 +5,8 @@ pragma solidity >=0.8.0 <0.9.0;
 import "./Reward.sol";
 import "./ChunkRewardBase.sol";
 import "../utils/MarketSpec.sol";
-import "../utils/Initializable.sol";
 
-contract ChunkDecayReward is Initializable, ChunkRewardBase {
+contract ChunkDecayReward is ChunkRewardBase {
     using RewardLibrary for Reward;
     uint16 public immutable annualMilliDecayRate;
 

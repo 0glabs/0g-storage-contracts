@@ -4,12 +4,12 @@ pragma solidity >=0.8.0 <0.9.0;
 import "../interfaces/IMarket.sol";
 import "../interfaces/IReward.sol";
 import "../utils/MarketSpec.sol";
-import "../utils/Initializable.sol";
+import "../utils/ZgInitializable.sol";
 
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract FixedPrice is IMarket, Context, Ownable, Initializable {
+contract FixedPrice is IMarket, Context, Ownable, ZgInitializable {
     // reserved storage slots for base contract upgrade in future
     uint[50] private __gap;
 
