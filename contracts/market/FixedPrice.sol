@@ -7,11 +7,13 @@ import "../utils/MarketSpec.sol";
 import "../utils/ZgInitializable.sol";
 
 import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 
-contract FixedPrice is IMarket, Context, Ownable, ZgInitializable {
+contract FixedPrice is IMarket, ZgInitializable, AccessControlEnumerable {
     // reserved storage slots for base contract upgrade in future
     uint[50] private __gap;
+
+    bytes32 public constant PARAMS_ADMIN_ROLE = keccak256("PARAMS_ADMIN_ROLE");
 
     uint public pricePerSector;
 
@@ -19,12 +21,15 @@ contract FixedPrice is IMarket, Context, Ownable, ZgInitializable {
     address public reward;
 
     function initialize(uint lifetimeMonthes, address flow_, address reward_) public onlyInitializeOnce {
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _grantRole(PARAMS_ADMIN_ROLE, _msgSender());
+
         pricePerSector = lifetimeMonthes * MONTH_ZGS_UNITS_PER_SECTOR;
         flow = flow_;
         reward = reward_;
     }
 
-    function setPricePerSector(uint pricePerSector_) external onlyOwner {
+    function setPricePerSector(uint pricePerSector_) external onlyRole(PARAMS_ADMIN_ROLE) {
         pricePerSector = pricePerSector_;
     }
 
@@ -45,6 +50,4 @@ contract FixedPrice is IMarket, Context, Ownable, ZgInitializable {
 
         IReward(reward).fillReward{value: bonus + uploadPart}(beforeLength + paddingSectors, uploadSectors);
     }
-
-    receive() external payable {}
 }

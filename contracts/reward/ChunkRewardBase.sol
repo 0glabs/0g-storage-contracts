@@ -3,20 +3,21 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "../utils/ZgsSpec.sol";
+import "../utils/ZgInitializable.sol";
 import "../utils/OnlySender.sol";
 import "../interfaces/IReward.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/PullPayment.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 
 import "./Reward.sol";
 
-abstract contract ChunkRewardBase is IReward, PullPayment, OwnableUpgradeable {
+abstract contract ChunkRewardBase is IReward, PullPayment, ZgInitializable, AccessControlEnumerable {
     using RewardLibrary for Reward;
 
-    bool public initialized;
+    bytes32 public constant PARAMS_ADMIN_ROLE = keccak256("PARAMS_ADMIN_ROLE");
 
     address public market;
     address public mine;
@@ -29,13 +30,12 @@ abstract contract ChunkRewardBase is IReward, PullPayment, OwnableUpgradeable {
     uint public serviceFeeRateBps;
     address public treasury;
 
-    function initialize(address market_, address mine_) public initializer {
-        __Ownable_init();
+    function initialize(address market_, address mine_) public onlyInitializeOnce {
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _grantRole(PARAMS_ADMIN_ROLE, _msgSender());
 
         market = market_;
         mine = mine_;
-
-        initialized = true;
     }
 
     function fillReward(uint beforeLength, uint chargedSectors) external payable {
@@ -96,15 +96,15 @@ abstract contract ChunkRewardBase is IReward, PullPayment, OwnableUpgradeable {
         }
     }
 
-    function setSingleDonation(uint singleDonation_) external onlyOwner {
+    function setSingleDonation(uint singleDonation_) external onlyRole(PARAMS_ADMIN_ROLE) {
         singleDonation = singleDonation_;
     }
 
-    function setServiceFeeRate(uint bps) external onlyOwner {
+    function setServiceFeeRate(uint bps) external onlyRole(PARAMS_ADMIN_ROLE) {
         serviceFeeRateBps = bps;
     }
 
-    function setTreasury(address treasury_) external onlyOwner {
+    function setTreasury(address treasury_) external onlyRole(PARAMS_ADMIN_ROLE) {
         treasury = treasury_;
     }
 

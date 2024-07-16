@@ -8,6 +8,7 @@ import "../utils/IDigestHistory.sol";
 import "../utils/DigestHistory.sol";
 import "../utils/BitMask.sol";
 import "../utils/ZgsSpec.sol";
+import "../utils/ZgInitializable.sol";
 import "../utils/Blake2b.sol";
 import "../interfaces/IMarket.sol";
 import "../interfaces/IFlow.sol";
@@ -18,10 +19,12 @@ import "./MineLib.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 
-contract PoraMine is OwnableUpgradeable {
+contract PoraMine is ZgInitializable, AccessControlEnumerable {
     using RecallRangeLib for RecallRange;
+
+    bytes32 public constant PARAMS_ADMIN_ROLE = keccak256("PARAMS_ADMIN_ROLE");
 
     // constants
     bytes32 private constant EMPTY_HASH = hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
@@ -33,8 +36,6 @@ contract PoraMine is OwnableUpgradeable {
     uint private constant NO_DATA_SEAL = 0x1;
     uint private constant NO_DATA_PROOF = 0x2;
     uint private constant FIXED_DIFFICULTY = 0x4;
-
-    bool public initialized;
 
     // Deferred initializd fields
     address public flow;
@@ -65,8 +66,9 @@ contract PoraMine is OwnableUpgradeable {
         fixedDifficulty = (settings & FIXED_DIFFICULTY != 0);
     }
 
-    function initialize(uint difficulty, address flow_, address reward_) public initializer {
-        __Ownable_init();
+    function initialize(uint difficulty, address flow_, address reward_) public onlyInitializeOnce {
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _grantRole(PARAMS_ADMIN_ROLE, _msgSender());
 
         poraTarget = type(uint).max / difficulty;
         if (fixedDifficulty) {
@@ -78,8 +80,6 @@ contract PoraMine is OwnableUpgradeable {
         targetSubmissions = 10;
         targetSubmissionsNextEpoch = 10;
         difficultyAdjustRatio = 20;
-
-        initialized = true;
     }
 
     function submit(MineLib.PoraAnswer memory answer) public {
@@ -232,18 +232,18 @@ contract PoraMine is OwnableUpgradeable {
         poraTarget = scaledAdjusted << 16;
     }
 
-    function setTargetMineBlocks(uint targetMineBlocks_) external onlyOwner {
+    function setTargetMineBlocks(uint targetMineBlocks_) external onlyRole(PARAMS_ADMIN_ROLE) {
         targetMineBlocks = targetMineBlocks_;
     }
 
-    function setTargetSubmissions(uint targetSubmissions_) external onlyOwner {
+    function setTargetSubmissions(uint targetSubmissions_) external onlyRole(PARAMS_ADMIN_ROLE) {
         targetSubmissionsNextEpoch = targetSubmissions_;
         if (lastMinedEpoch == 0) {
             targetSubmissions = targetSubmissions_;
         }
     }
 
-    function setDifficultyAdjustRatio(uint difficultyAdjustRatio_) external onlyOwner {
+    function setDifficultyAdjustRatio(uint difficultyAdjustRatio_) external onlyRole(PARAMS_ADMIN_ROLE) {
         difficultyAdjustRatio = difficultyAdjustRatio_;
     }
 
