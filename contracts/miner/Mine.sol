@@ -244,6 +244,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
     }
 
     function setDifficultyAdjustRatio(uint difficultyAdjustRatio_) external onlyRole(PARAMS_ADMIN_ROLE) {
+        require(difficultyAdjustRatio_ > 0, "Adjust ratio must be non-zero");
         difficultyAdjustRatio = difficultyAdjustRatio_;
     }
 

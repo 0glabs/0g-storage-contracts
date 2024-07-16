@@ -24,8 +24,8 @@ abstract contract ChunkRewardBase is IReward, PullPayment, ZgInitializable, Acce
 
     mapping(uint => Reward) public rewards;
 
-    uint public totalDonations;
-    uint public singleDonation;
+    uint public totalBaseReward;
+    uint public baseReward;
 
     uint public serviceFeeRateBps;
     address public treasury;
@@ -85,10 +85,10 @@ abstract contract ChunkRewardBase is IReward, PullPayment, ZgInitializable, Acce
         uint rewardAmount = reward.claimReward();
         rewards[pricingIndex] = reward;
 
-        uint approvedDonation = _donatedReward(pricingIndex, reward, rewardAmount);
-        uint actualDonation = totalDonations > approvedDonation ? approvedDonation : totalDonations;
-        rewardAmount += actualDonation;
-        totalDonations -= actualDonation;
+        uint approvedReward = _baseReward(pricingIndex, reward, rewardAmount);
+        uint actualBaseReward = totalBaseReward > approvedReward ? approvedReward : totalBaseReward;
+        rewardAmount += actualBaseReward;
+        totalBaseReward -= actualBaseReward;
 
         if (rewardAmount > 0) {
             _asyncTransfer(beneficiary, rewardAmount);
@@ -96,8 +96,8 @@ abstract contract ChunkRewardBase is IReward, PullPayment, ZgInitializable, Acce
         }
     }
 
-    function setSingleDonation(uint singleDonation_) external onlyRole(PARAMS_ADMIN_ROLE) {
-        singleDonation = singleDonation_;
+    function setBaseReward(uint baseReward_) external onlyRole(PARAMS_ADMIN_ROLE) {
+        baseReward = baseReward_;
     }
 
     function setServiceFeeRate(uint bps) external onlyRole(PARAMS_ADMIN_ROLE) {
@@ -109,12 +109,12 @@ abstract contract ChunkRewardBase is IReward, PullPayment, ZgInitializable, Acce
     }
 
     function donate() external payable {
-        totalDonations += msg.value;
+        totalBaseReward += msg.value;
     }
 
     function _releasedReward(Reward memory reward) internal view virtual returns (uint);
 
-    function _donatedReward(
+    function _baseReward(
         uint pricingIndex,
         Reward memory reward,
         uint rewardAmount

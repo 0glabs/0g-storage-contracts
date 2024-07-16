@@ -21,7 +21,7 @@ contract ChunkDecayReward is ChunkRewardBase {
         return reward.expDecayReward(annualMilliDecayRate);
     }
 
-    function _donatedReward(uint, Reward memory, uint) internal view override returns (uint) {
-        return singleDonation;
+    function _baseReward(uint, Reward memory, uint) internal view override returns (uint) {
+        return baseReward;
     }
 }

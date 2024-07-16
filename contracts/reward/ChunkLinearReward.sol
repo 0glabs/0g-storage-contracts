@@ -23,10 +23,10 @@ contract ChunkLinearReward is ChunkRewardBase {
         return reward.linearDecayReward(releaseMonths);
     }
 
-    function _donatedReward(uint, Reward memory reward, uint) internal view override returns (uint) {
+    function _baseReward(uint, Reward memory reward, uint) internal view override returns (uint) {
         uint releaseSeconds = releaseMonths * SECONDS_PER_MONTH;
         if (reward.startTime + releaseSeconds <= block.timestamp) {
-            return singleDonation;
+            return baseReward;
         } else {
             return 0;
         }
