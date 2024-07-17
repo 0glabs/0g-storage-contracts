@@ -4,11 +4,11 @@ import { blake2b, keccak } from "hash-wasm";
 import { deployMock } from "./utils/deploy";
 import env = require("hardhat");
 
+import { MockContract } from "@clrfund/waffle-mock-contract";
 import { AbiCoder, keccak256 } from "ethers";
 import { PoraMineTest } from "../typechain-types";
 import { genLeaves, MockMerkle } from "./utils/mockMerkleTree";
 import { Snapshot } from "./utils/snapshot";
-import { MockContract } from "@clrfund/waffle-mock-contract";
 
 const abiCoder = new AbiCoder();
 

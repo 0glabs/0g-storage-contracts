@@ -8,6 +8,6 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await deployInBeaconProxy(hre, CONTRACTS.OnePoolReward, [config.lifetimeMonth]);
 };
 
-deploy.tags = [CONTRACTS.OnePoolReward.name, "market-enabled"];
+deploy.tags = [CONTRACTS.OnePoolReward.name];
 deploy.dependencies = [];
 export default deploy;

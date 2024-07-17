@@ -7,40 +7,33 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     // initialize all contracts
     const config = getConfig(hre.network.name);
     const poraMine_ = await getTypedContract(hre, CONTRACTS.PoraMine);
-    const fixedPrice_ = await getTypedContract(hre, CONTRACTS.FixedPrice);
-    const onePoolReward_ = await getTypedContract(hre, CONTRACTS.OnePoolReward);
+    const fixedPriceMarket_ = await getTypedContract(hre, CONTRACTS.FixedPriceMarket);
+    const chunkLinearReward_ = await getTypedContract(hre, CONTRACTS.ChunkLinearReward);
     const fixedPriceFlow_ = await getTypedContract(hre, CONTRACTS.FixedPriceFlow);
+
+    const flowAddress = await fixedPriceFlow_.getAddress();
+    const rewardAddress = await chunkLinearReward_.getAddress();
+    const marketAddress = await fixedPriceMarket_.getAddress();
+    const mineAddress = await poraMine_.getAddress();
 
     console.log(`initializing pora mine..`);
     if (!(await poraMine_.initialized())) {
-        await (
-            await poraMine_.initialize(
-                config.mineConfigs.initDifficulty,
-                await fixedPriceFlow_.getAddress(),
-                await onePoolReward_.getAddress()
-            )
-        ).wait();
+        await (await poraMine_.initialize(config.mineConfigs.initDifficulty, flowAddress, rewardAddress)).wait();
     }
 
     console.log(`initializing fixed price market..`);
-    if (!(await fixedPrice_.initialized())) {
-        await (
-            await fixedPrice_.initialize(
-                config.lifetimeMonth,
-                await fixedPriceFlow_.getAddress(),
-                await onePoolReward_.getAddress()
-            )
-        ).wait();
+    if (!(await fixedPriceMarket_.initialized())) {
+        await (await fixedPriceMarket_.initialize(config.lifetimeMonth, flowAddress, rewardAddress)).wait();
     }
 
-    console.log(`initializing one pool reward..`);
-    if (!(await onePoolReward_.initialized())) {
-        await (await onePoolReward_.initialize(await fixedPrice_.getAddress(), await poraMine_.getAddress())).wait();
+    console.log(`initializing chunk linear reward..`);
+    if (!(await chunkLinearReward_.initialized())) {
+        await (await chunkLinearReward_.initialize(marketAddress, mineAddress)).wait();
     }
 
     console.log(`initializing fixed price flow..`);
     if (!(await fixedPriceFlow_.initialized())) {
-        await (await fixedPriceFlow_["initialize(address)"](await fixedPrice_.getAddress())).wait();
+        await (await fixedPriceFlow_.initialize(marketAddress)).wait();
     }
     console.log(`all contract initialized.`);
 };
@@ -48,8 +41,8 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 deploy.tags = ["market-enabled"];
 deploy.dependencies = [
     CONTRACTS.PoraMine.name,
-    CONTRACTS.OnePoolReward.name,
-    CONTRACTS.FixedPrice.name,
+    CONTRACTS.ChunkLinearReward.name,
+    CONTRACTS.FixedPriceMarket.name,
     CONTRACTS.FixedPriceFlow.name,
 ];
 export default deploy;

@@ -44,7 +44,7 @@ export const CONTRACTS = {
     Cashier: new ContractMeta(Factories.Cashier__factory),
     FixedPriceFlow: new ContractMeta(Factories.FixedPriceFlow__factory),
     Flow: new ContractMeta(Factories.Flow__factory),
-    FixedPrice: new ContractMeta(Factories.FixedPrice__factory),
+    FixedPriceMarket: new ContractMeta(Factories.FixedPrice__factory),
     PoraMine: new ContractMeta(Factories.PoraMine__factory),
     PoraMineTest: new ContractMeta(Factories.PoraMineTest__factory),
     OnePoolReward: new ContractMeta(Factories.OnePoolReward__factory),
@@ -52,6 +52,7 @@ export const CONTRACTS = {
     DummyReward: new ContractMeta(Factories.DummyReward__factory),
     Blake2bTest: new ContractMeta(Factories.Blake2bTest__factory),
     ChunkDecayReward: new ContractMeta(Factories.ChunkDecayReward__factory),
+    ChunkLinearReward: new ContractMeta(Factories.ChunkLinearReward__factory),
     CashierTest: new ContractMeta(Factories.CashierTest__factory),
 } as const;
 

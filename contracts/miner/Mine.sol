@@ -8,8 +8,8 @@ import "../utils/IDigestHistory.sol";
 import "../utils/DigestHistory.sol";
 import "../utils/BitMask.sol";
 import "../utils/ZgsSpec.sol";
+import "../utils/ZgInitializable.sol";
 import "../utils/Blake2b.sol";
-import "../utils/Initializable.sol";
 import "../interfaces/IMarket.sol";
 import "../interfaces/IFlow.sol";
 import "../interfaces/IReward.sol";
@@ -19,10 +19,12 @@ import "./MineLib.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 
-contract PoraMine is Initializable, Ownable {
+contract PoraMine is ZgInitializable, AccessControlEnumerable {
     using RecallRangeLib for RecallRange;
+
+    bytes32 public constant PARAMS_ADMIN_ROLE = keccak256("PARAMS_ADMIN_ROLE");
 
     // constants
     bytes32 private constant EMPTY_HASH = hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
@@ -39,15 +41,17 @@ contract PoraMine is Initializable, Ownable {
     address public flow;
     address public reward;
 
+    mapping(bytes32 => bool) private _submittedPora;
+
     // Configurable parameters
-    uint public targetMineBlocks = 100;
-    uint public targetSubmissions = 10;
-    uint public targetSubmissionsNextEpoch = 10;
-    uint public difficultyAdjustRatio = 20;
+    uint public targetMineBlocks;
+    uint public targetSubmissions;
+    uint public targetSubmissionsNextEpoch;
+    uint public difficultyAdjustRatio;
 
     // Contract state
-    uint public lastMinedEpoch = 0;
-    uint public currentSubmissions = 0;
+    uint public lastMinedEpoch;
+    uint public currentSubmissions;
     uint public poraTarget;
 
     mapping(bytes32 => address) public beneficiaries;
@@ -63,12 +67,19 @@ contract PoraMine is Initializable, Ownable {
     }
 
     function initialize(uint difficulty, address flow_, address reward_) public onlyInitializeOnce {
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _grantRole(PARAMS_ADMIN_ROLE, _msgSender());
+
         poraTarget = type(uint).max / difficulty;
         if (fixedDifficulty) {
             poraTarget = type(uint).max;
         }
         flow = flow_;
         reward = reward_;
+        targetMineBlocks = 100;
+        targetSubmissions = 10;
+        targetSubmissionsNextEpoch = 10;
+        difficultyAdjustRatio = 20;
     }
 
     function submit(MineLib.PoraAnswer memory answer) public {
@@ -108,6 +119,8 @@ contract PoraMine is Initializable, Ownable {
         // Step 5: compute PoRA hash
         bytes32 poraOutput = pora(answer);
         require(uint(poraOutput) <= poraTarget / answer.range.numShards(), "Do not reach target quality");
+        require(!_submittedPora[poraOutput], "Answer has been submitted");
+        _submittedPora[poraOutput] = true;
 
         // Step 6: reward
         IReward(reward).claimMineReward(
@@ -219,18 +232,19 @@ contract PoraMine is Initializable, Ownable {
         poraTarget = scaledAdjusted << 16;
     }
 
-    function setTargetMineBlocks(uint targetMineBlocks_) external onlyOwner {
+    function setTargetMineBlocks(uint targetMineBlocks_) external onlyRole(PARAMS_ADMIN_ROLE) {
         targetMineBlocks = targetMineBlocks_;
     }
 
-    function setTargetSubmissions(uint targetSubmissions_) external onlyOwner {
+    function setTargetSubmissions(uint targetSubmissions_) external onlyRole(PARAMS_ADMIN_ROLE) {
         targetSubmissionsNextEpoch = targetSubmissions_;
         if (lastMinedEpoch == 0) {
             targetSubmissions = targetSubmissions_;
         }
     }
 
-    function setDifficultyAdjustRatio(uint difficultyAdjustRatio_) external onlyOwner {
+    function setDifficultyAdjustRatio(uint difficultyAdjustRatio_) external onlyRole(PARAMS_ADMIN_ROLE) {
+        require(difficultyAdjustRatio_ > 0, "Adjust ratio must be non-zero");
         difficultyAdjustRatio = difficultyAdjustRatio_;
     }
 

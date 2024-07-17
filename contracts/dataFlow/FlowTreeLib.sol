@@ -3,34 +3,79 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-import "../utils/Initializable.sol";
+struct FlowTree {
+    uint currentLength;
+    uint unstagedHeight;
+    bytes32[] openNodes;
+}
 
-contract IncrementalMerkleTree is Initializable {
+library FlowTreeLib {
     using SafeMath for uint;
 
-    // reserved storage slots for base contract upgrade in future
-    uint[50] private __gap;
-
-    uint public currentLength;
-    bytes32[] private openNodes;
-    uint public unstagedHeight;
-
-    function _initialize(bytes32 identifier) internal virtual {
-        currentLength = 1;
-        openNodes = new bytes32[](0);
-        openNodes.push(identifier);
-        unstagedHeight = 1;
+    function initialize(FlowTree storage tree, bytes32 identifier) internal {
+        tree.currentLength = 1;
+        tree.openNodes.push(identifier);
+        tree.unstagedHeight = 1;
     }
 
-    function initialize(bytes32 identifier) public virtual onlyInitializeOnce {
-        _initialize(identifier);
+    function insertNode(FlowTree storage tree, bytes32 nodeRoot, uint height) internal returns (uint) {
+        // console.log("<<insert node>>");
+        uint startIndex = nextAlign(tree.currentLength, height);
+        uint afterLength = startIndex + (1 << height);
+
+        // If merkle tree is not high enough, add a new level.
+        if (afterLength > 1 << (tree.openNodes.length - 1)) {
+            commitRoot(tree);
+            _addNewLevel(tree);
+            while (afterLength > 1 << (tree.openNodes.length - 1)) {
+                _addNewLevel(tree);
+            }
+            tree.unstagedHeight = tree.openNodes.length;
+        }
+
+        uint totalHeight = tree.openNodes.length;
+
+        _commitUnstaged(tree, height);
+
+        bytes32 left;
+        bytes32 right;
+        bytes32 currentHeightHash = nodeRoot;
+
+        // console.log(
+        //     "Current height %d, start index %d ",
+        //     totalHeight,
+        //     startIndex
+        // );
+        for (uint i = height; i < totalHeight; i++) {
+            if ((startIndex >> i) % 2 == 0) {
+                tree.openNodes[i] = currentHeightHash;
+                tree.unstagedHeight = i + 1;
+                if (i != totalHeight - 1) {
+                    // console.log("early stop at height %d", i);
+                }
+                break;
+            } else {
+                left = tree.openNodes[i];
+                right = currentHeightHash;
+            }
+            // console.log("process height %d", i);
+            // console.logBytes(abi.encode(left, right));
+            currentHeightHash = keccak256(abi.encode(left, right));
+            // console.logBytes32(currentHeightHash);
+        }
+
+        tree.currentLength = startIndex + (1 << height);
+
+        // console.log("insert node done");
+
+        return startIndex;
     }
 
-    function root() public view returns (bytes32) {
-        return openNodes[openNodes.length - 1];
+    function root(FlowTree storage tree) internal view returns (bytes32) {
+        return tree.openNodes[tree.openNodes.length - 1];
     }
 
-    function nextAlign(uint _length, uint alignExp) public pure returns (uint) {
+    function nextAlign(uint _length, uint alignExp) internal pure returns (uint) {
         uint length = _length;
         if (length == 0) {
             return 0;
@@ -42,7 +87,7 @@ contract IncrementalMerkleTree is Initializable {
         return length;
     }
 
-    function nextPow2(uint _length) public pure returns (uint) {
+    function nextPow2(uint _length) internal pure returns (uint) {
         uint length = _length;
         if (length == 0) {
             return 0;
@@ -56,122 +101,69 @@ contract IncrementalMerkleTree is Initializable {
         return length + 1;
     }
 
-    function _addNewLevel() internal {
-        uint _totalHeight = openNodes.length;
-        bytes32 _left = openNodes[_totalHeight - 1];
+    function _addNewLevel(FlowTree storage tree) internal {
+        uint _totalHeight = tree.openNodes.length;
+        bytes32 _left = tree.openNodes[_totalHeight - 1];
         bytes32 _right = zeros(_totalHeight - 1);
-        openNodes.push(keccak256(abi.encode(_left, _right)));
+        tree.openNodes.push(keccak256(abi.encode(_left, _right)));
     }
 
-    function commitRoot() public {
-        if (unstagedHeight == openNodes.length) {
+    function commitRoot(FlowTree storage tree) internal {
+        if (tree.unstagedHeight == tree.openNodes.length) {
             return;
         }
-        uint totalHeight = openNodes.length;
+        uint totalHeight = tree.openNodes.length;
 
-        bytes32 left = openNodes[unstagedHeight - 1];
-        bytes32 right = zeros(unstagedHeight - 1);
+        bytes32 left = tree.openNodes[tree.unstagedHeight - 1];
+        bytes32 right = zeros(tree.unstagedHeight - 1);
 
-        for (uint i = unstagedHeight; i < totalHeight; i++) {
+        for (uint i = tree.unstagedHeight; i < totalHeight; i++) {
             // console.log("commit root: process height %d", i - 1);
             // console.logBytes(abi.encode(left, right));
             bytes32 currentHeightHash = keccak256(abi.encode(left, right));
             // console.logBytes32(currentHeightHash);
-            if ((currentLength >> i) % 2 == 0) {
+            if ((tree.currentLength >> i) % 2 == 0) {
                 left = currentHeightHash;
                 right = zeros(i);
-                openNodes[i] = currentHeightHash;
+                tree.openNodes[i] = currentHeightHash;
             } else {
-                left = openNodes[i];
+                left = tree.openNodes[i];
                 right = currentHeightHash;
             }
         }
-        unstagedHeight = totalHeight;
+        tree.unstagedHeight = totalHeight;
     }
 
-    function _commitUnstaged(uint minHeight) internal {
+    function _commitUnstaged(FlowTree storage tree, uint minHeight) internal {
         // We do not change `unstaged` in this function since it will be updated again soon.
-        if (unstagedHeight > minHeight) {
+        if (tree.unstagedHeight > minHeight) {
             return;
         }
-        uint totalHeight = openNodes.length;
+        uint totalHeight = tree.openNodes.length;
 
-        bytes32 left = openNodes[unstagedHeight - 1];
-        bytes32 right = zeros(unstagedHeight - 1);
+        bytes32 left = tree.openNodes[tree.unstagedHeight - 1];
+        bytes32 right = zeros(tree.unstagedHeight - 1);
 
-        for (uint i = unstagedHeight; i < totalHeight; i++) {
+        for (uint i = tree.unstagedHeight; i < totalHeight; i++) {
             // console.log("commit unstaged: process height %d", i - 1);
             // console.logBytes(abi.encode(left, right));
             bytes32 currentHeightHash = keccak256(abi.encode(left, right));
             // console.logBytes32(currentHeightHash);
-            if ((currentLength >> i) % 2 == 0) {
+            if ((tree.currentLength >> i) % 2 == 0) {
                 left = currentHeightHash;
                 right = zeros(i);
                 if (i >= minHeight) {
-                    openNodes[i] = currentHeightHash;
+                    tree.openNodes[i] = currentHeightHash;
                     return;
                 }
             } else {
-                left = openNodes[i];
+                left = tree.openNodes[i];
                 right = currentHeightHash;
             }
         }
     }
 
-    function _insertNode(bytes32 nodeRoot, uint height) internal returns (uint) {
-        // console.log("<<insert node>>");
-        uint startIndex = nextAlign(currentLength, height);
-        uint afterLength = startIndex + (1 << height);
-
-        // If merkle tree is not high enough, add a new level.
-        if (afterLength > 1 << (openNodes.length - 1)) {
-            commitRoot();
-            _addNewLevel();
-            while (afterLength > 1 << (openNodes.length - 1)) {
-                _addNewLevel();
-            }
-            unstagedHeight = openNodes.length;
-        }
-
-        uint totalHeight = openNodes.length;
-
-        _commitUnstaged(height);
-
-        bytes32 left;
-        bytes32 right;
-        bytes32 currentHeightHash = nodeRoot;
-
-        // console.log(
-        //     "Current height %d, start index %d ",
-        //     totalHeight,
-        //     startIndex
-        // );
-        for (uint i = height; i < totalHeight; i++) {
-            if ((startIndex >> i) % 2 == 0) {
-                openNodes[i] = currentHeightHash;
-                unstagedHeight = i + 1;
-                if (i != totalHeight - 1) {
-                    // console.log("early stop at height %d", i);
-                }
-                break;
-            } else {
-                left = openNodes[i];
-                right = currentHeightHash;
-            }
-            // console.log("process height %d", i);
-            // console.logBytes(abi.encode(left, right));
-            currentHeightHash = keccak256(abi.encode(left, right));
-            // console.logBytes32(currentHeightHash);
-        }
-
-        currentLength = startIndex + (1 << height);
-
-        // console.log("insert node done");
-
-        return startIndex;
-    }
-
-    function zeros(uint height) public pure returns (bytes32) {
+    function zeros(uint height) internal pure returns (bytes32) {
         if (height == 0) return hex"d397b3b043d87fcd6fad1291ff0bfd16401c274896d8c63a923727f077b8e0b5";
         else if (height == 1) return hex"f73e6947d7d1628b9976a6e40d7b278a8a16405e96324a68df45b12a51b7cfde";
         else if (height == 2) return hex"a1520264ae93cac619e22e8718fc4fa7ebdd23f493cad602434d2a58ff4868fb";
