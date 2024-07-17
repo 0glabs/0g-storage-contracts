@@ -1,0 +1,24 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "ZgInitializable",
+  "sourceName": "contracts/utils/ZgInitializable.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "initialized",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x6080604052348015600f57600080fd5b5060838061001e6000396000f3fe6080604052348015600f57600080fd5b506004361060285760003560e01c8063158ef93e14602d575b600080fd5b60005460399060ff1681565b604051901515815260200160405180910390f3fea2646970667358221220d1fb5a689680f7862cdb845c54f1ecb8e443e38f55e28831f6122fbce0dc5f1b64736f6c63430008100033",
+  "deployedBytecode": "0x6080604052348015600f57600080fd5b506004361060285760003560e01c8063158ef93e14602d575b600080fd5b60005460399060ff1681565b604051901515815260200160405180910390f3fea2646970667358221220d1fb5a689680f7862cdb845c54f1ecb8e443e38f55e28831f6122fbce0dc5f1b64736f6c63430008100033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
