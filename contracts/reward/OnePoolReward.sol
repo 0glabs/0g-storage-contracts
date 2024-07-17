@@ -4,11 +4,11 @@ pragma solidity >=0.8.0 <0.9.0;
 import "../interfaces/IReward.sol";
 import "../utils/ZgsSpec.sol";
 import "../utils/MarketSpec.sol";
-import "../utils/Initializable.sol";
+import "../utils/ZgInitializable.sol";
 
 import "@openzeppelin/contracts/utils/Context.sol";
 
-contract OnePoolReward is IReward, Context, Initializable {
+contract OnePoolReward is IReward, Context, ZgInitializable {
     // immutables
     uint public immutable lifetimeInSeconds;
 

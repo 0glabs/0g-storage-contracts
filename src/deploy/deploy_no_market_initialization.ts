@@ -28,7 +28,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     console.log(`initializing flow..`);
     if (!(await flow_.initialized())) {
-        await (await flow_["initialize(address)"](await dummyMarket_.getAddress())).wait();
+        await (await flow_.initialize(await dummyMarket_.getAddress())).wait();
     }
     console.log(`all contract initialized.`);
 };

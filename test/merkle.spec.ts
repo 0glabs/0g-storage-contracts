@@ -14,7 +14,6 @@ describe("Incremental merkle hash", function () {
     beforeEach(async () => {
         const merkleABI = await ethers.getContractFactory("MerkleTreeTest");
         merkle = await merkleABI.deploy();
-        await merkle.initialize("0x0000000000000000000000000000000000000000000000000000000000000000");
     });
 
     it("init root", async () => {
@@ -191,7 +190,6 @@ async function insertNodeFromHeight(merkle: Contract, heights: number[], tree: M
 async function testFromHeight(heights: number[]) {
     const merkleABI = await ethers.getContractFactory("MerkleTreeTest");
     const merkle = await merkleABI.deploy();
-    await merkle.initialize("0x0000000000000000000000000000000000000000000000000000000000000000");
     const tree = await buildLeafFromHeight(heights);
     await insertNodeFromHeight(merkle, heights, tree);
     await merkle.commitRoot();
