@@ -1,7 +1,6 @@
 import { expect } from "chai";
-import hre, { deployments } from "hardhat";
+import { deployments, ethers } from "hardhat";
 import { blake2b } from "hash-wasm";
-import { CONTRACTS, getTypedContract } from "../src/utils/utils";
 import { Blake2bTest } from "../typechain-types";
 
 function bufferResponse(response: string[]) {
@@ -16,7 +15,8 @@ describe("Blake2b hash", function () {
     let blake2bContract: Blake2bTest;
     before(async () => {
         await deployments.fixture("blake2b-test");
-        blake2bContract = await getTypedContract(hre, CONTRACTS.Blake2bTest);
+        const blakeABI = await ethers.getContractFactory("Blake2bTest");
+        blake2bContract = await blakeABI.deploy();
     });
 
     it("hash empty", async () => {

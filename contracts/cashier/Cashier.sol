@@ -7,14 +7,14 @@ import "../utils/ZgsSpec.sol";
 import "../utils/Exponent.sol";
 import "../utils/OnlySender.sol";
 import "../utils/TimeInterval.sol";
-import "../utils/Initializable.sol";
+import "../utils/ZgInitializable.sol";
 import "../token/ISafeERC20.sol";
 import "../interfaces/IMarket.sol";
 import "../interfaces/IReward.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract Cashier is IMarket, OnlySender, TimeInterval, Initializable {
+contract Cashier is IMarket, OnlySender, TimeInterval, ZgInitializable {
     // reserved storage slots for base contract upgrade in future
     uint[50] private __gap;
 
