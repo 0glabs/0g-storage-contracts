@@ -44,7 +44,7 @@ library RewardLibrary {
         return (releaseX96 * uint(reward.lockedReward)) / (1 << 96);
     }
 
-    function linearDecayReward(Reward memory reward, uint releaseMonth) internal view returns (uint) {
+    function linearDecayReward(Reward memory reward, uint releaseSeconds) internal view returns (uint) {
         if (reward.lastUpdate == 0) {
             return 0;
         }
@@ -54,7 +54,7 @@ library RewardLibrary {
 
         uint timeElapsedSinceLaunch = block.timestamp - reward.startTime;
 
-        uint expectedReleasedReward = (totalReward * timeElapsedSinceLaunch) / releaseMonth / SECONDS_PER_MONTH;
+        uint expectedReleasedReward = (totalReward * timeElapsedSinceLaunch) / releaseSeconds;
         if (expectedReleasedReward > totalReward) {
             expectedReleasedReward = totalReward;
         }

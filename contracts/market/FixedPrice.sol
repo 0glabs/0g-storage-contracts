@@ -20,11 +20,11 @@ contract FixedPrice is IMarket, ZgInitializable, AccessControlEnumerable {
     address public flow;
     address public reward;
 
-    function initialize(uint lifetimeMonthes, address flow_, address reward_) public onlyInitializeOnce {
+    function initialize(uint pricePerSector_, address flow_, address reward_) public onlyInitializeOnce {
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _grantRole(PARAMS_ADMIN_ROLE, _msgSender());
 
-        pricePerSector = lifetimeMonthes * MONTH_ZGS_UNITS_PER_SECTOR;
+        pricePerSector = pricePerSector_;
         flow = flow_;
         reward = reward_;
     }

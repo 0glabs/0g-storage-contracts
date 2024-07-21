@@ -13,18 +13,17 @@ contract ChunkLinearReward is ChunkRewardBase {
     // reserved storage slots for base contract upgrade in future
     uint[50] private __gap;
 
-    uint16 public immutable releaseMonths;
+    uint16 public immutable releaseSeconds;
 
-    constructor(uint16 releaseMonths_) {
-        releaseMonths = releaseMonths_;
+    constructor(uint16 releaseSeconds_) {
+        releaseSeconds = releaseSeconds_;
     }
 
     function _releasedReward(Reward memory reward) internal view override returns (uint) {
-        return reward.linearDecayReward(releaseMonths);
+        return reward.linearDecayReward(releaseSeconds);
     }
 
     function _baseReward(uint, Reward memory reward, uint) internal view override returns (uint) {
-        uint releaseSeconds = releaseMonths * SECONDS_PER_MONTH;
         if (reward.startTime + releaseSeconds <= block.timestamp) {
             return baseReward;
         } else {
@@ -33,7 +32,6 @@ contract ChunkLinearReward is ChunkRewardBase {
     }
 
     function rewardDeadline(uint pricingIndex) public view returns (uint) {
-        uint releaseSeconds = releaseMonths * SECONDS_PER_MONTH;
         Reward memory reward = rewards[pricingIndex];
         if (reward.startTime == 0) {
             return 0;

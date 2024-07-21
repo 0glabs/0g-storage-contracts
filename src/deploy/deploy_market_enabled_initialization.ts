@@ -23,7 +23,8 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     console.log(`initializing fixed price market..`);
     if (!(await fixedPriceMarket_.initialized())) {
-        await (await fixedPriceMarket_.initialize(config.lifetimeMonth, flowAddress, rewardAddress)).wait();
+        // Use `lifetimeMonth * MONTH_ZGS_UNITS_PER_SECTOR` as `pricePerSector`
+        await (await fixedPriceMarket_.initialize(config.lifetimeMonth * 256 * 10 * 1_000_000_000_000_000_000 / 1024 / 1024 / 1024 / 12, flowAddress, rewardAddress)).wait();
     }
 
     console.log(`initializing chunk linear reward..`);
