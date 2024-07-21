@@ -3,7 +3,7 @@
     "inputs": [
       {
         "internalType": "uint16",
-        "name": "releaseMonths_",
+        "name": "releaseSeconds_",
         "type": "uint16"
       }
     ],
@@ -392,7 +392,7 @@
   },
   {
     "inputs": [],
-    "name": "releaseMonths",
+    "name": "releaseSeconds",
     "outputs": [
       {
         "internalType": "uint16",

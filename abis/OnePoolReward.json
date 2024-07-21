@@ -3,7 +3,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "lifetimeMonthes",
+        "name": "lifetimeSeconds_",
         "type": "uint256"
       }
     ],
