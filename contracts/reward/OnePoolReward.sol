@@ -35,8 +35,8 @@ contract OnePoolReward is IReward, Context, ZgInitializable {
         uint donation;
     }
 
-    constructor(uint lifetimeMonthes) {
-        lifetimeInSeconds = lifetimeMonthes * SECONDS_PER_MONTH;
+    constructor(uint lifetimeSeconds_) {
+        lifetimeInSeconds = lifetimeSeconds_;
     }
 
     function _initialize(address market_, address mine_) internal {
