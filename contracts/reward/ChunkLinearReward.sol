@@ -13,9 +13,9 @@ contract ChunkLinearReward is ChunkRewardBase {
     // reserved storage slots for base contract upgrade in future
     uint[50] private __gap;
 
-    uint16 public immutable releaseSeconds;
+    uint public immutable releaseSeconds;
 
-    constructor(uint16 releaseSeconds_) {
+    constructor(uint releaseSeconds_) {
         releaseSeconds = releaseSeconds_;
     }
 
@@ -24,7 +24,7 @@ contract ChunkLinearReward is ChunkRewardBase {
     }
 
     function _baseReward(uint, Reward memory reward, uint) internal view override returns (uint) {
-        if (reward.startTime + releaseSeconds <= block.timestamp) {
+        if (reward.startTime + releaseSeconds > block.timestamp) {
             return baseReward;
         } else {
             return 0;

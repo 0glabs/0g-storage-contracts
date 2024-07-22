@@ -48,6 +48,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
     uint public targetSubmissions;
     uint public targetSubmissionsNextEpoch;
     uint public difficultyAdjustRatio;
+    uint64 public maxShards;
 
     // Contract state
     uint public lastMinedEpoch;
@@ -80,6 +81,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         targetSubmissions = 10;
         targetSubmissionsNextEpoch = 10;
         difficultyAdjustRatio = 20;
+        maxShards = 32;
     }
 
     function submit(MineLib.PoraAnswer memory answer) public {
@@ -93,7 +95,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         require(context.epoch >= lastMinedEpoch, "Internal error: epoch number decrease");
         if (context.epoch > lastMinedEpoch && lastMinedEpoch > 0) {
             if (currentSubmissions < targetSubmissions) {
-                // Not enough submissions in the whole epoch
+                // Not enough submissions in the last epoch
                 _adjustDifficultyOnIncompleteEpoch();
             }
             currentSubmissions = 0;
@@ -102,6 +104,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
 
         // Step 3: basic check for submission
         basicCheck(answer, context);
+        require(answer.range.numShards() <= maxShards, "Exceeding the allowed number of shards");
 
         // Step 4: configurable check
         bytes32[UNITS_PER_SEAL] memory unsealedData;
@@ -118,7 +121,9 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
 
         // Step 5: compute PoRA hash
         bytes32 poraOutput = pora(answer);
-        require(uint(poraOutput) <= poraTarget / answer.range.numShards(), "Do not reach target quality");
+        uint scaleX64 = answer.range.targetScaleX64(context.flowLength);
+        // scaleX64 >= 2^64, so there is no overflow
+        require(uint(poraOutput) <= (poraTarget / scaleX64) << 64, "Do not reach target quality");
         require(!_submittedPora[poraOutput], "Answer has been submitted");
         _submittedPora[poraOutput] = true;
 
@@ -246,6 +251,12 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
     function setDifficultyAdjustRatio(uint difficultyAdjustRatio_) external onlyRole(PARAMS_ADMIN_ROLE) {
         require(difficultyAdjustRatio_ > 0, "Adjust ratio must be non-zero");
         difficultyAdjustRatio = difficultyAdjustRatio_;
+    }
+
+    function setMaxShards(uint64 maxShards_) external onlyRole(PARAMS_ADMIN_ROLE) {
+        require(maxShards_ > 0, "Max shard number cannot be zero");
+        require(maxShards_ & (maxShards_ - 1) == 0, "Max shard number must be power of 2");
+        maxShards = maxShards_;
     }
 
     function canSubmit() external returns (bool) {
