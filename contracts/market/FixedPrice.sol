@@ -50,4 +50,6 @@ contract FixedPrice is IMarket, ZgInitializable, AccessControlEnumerable {
 
         IReward(reward).fillReward{value: bonus + uploadPart}(beforeLength + paddingSectors, uploadSectors);
     }
+
+    receive() external payable {}
 }
