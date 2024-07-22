@@ -28,7 +28,7 @@ library RecallRangeLib {
         require(range.shardId & range.shardMask == 0, "Masked bits should be zero");
     }
 
-    // Compute bit `1` in shardMask, while assuming there is only a few zeros.
+    // Compute bit `0` in shardMask, while assuming there is only a few zeros.
     function numShards(RecallRange memory range) internal pure returns (uint) {
         uint64 negMask = ~range.shardMask;
         uint8 answer = 0;
@@ -37,6 +37,13 @@ library RecallRangeLib {
             answer++;
         }
         return 1 << answer;
+    }
+
+    function targetScaleX64(RecallRange memory range, uint flowLength) internal pure returns (uint) {
+        uint noShardMineLength = flowLength > MAX_MINING_LENGTH ? MAX_MINING_LENGTH : flowLength;
+        uint shardLength = flowLength / numShards(range);
+        uint actualMineLength = shardLength > MAX_MINING_LENGTH ? MAX_MINING_LENGTH : shardLength;
+        return (noShardMineLength << 64) / actualMineLength;
     }
 
     function digest(RecallRange memory range) internal pure returns (bytes32) {
