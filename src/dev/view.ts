@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { BigNumber, Signer } from "ethers";
+import { Signer } from "ethers";
 import { ethers } from "hardhat";
 import { FixedPriceFlow, OnePoolReward, PoraMine } from "../../typechain-types";
 
@@ -25,8 +25,7 @@ async function getBlockNumber() {
 }
 
 async function printContext(flow: FixedPriceFlow, batches: number = 10) {
-    const [firstBlock_, blocksPerEpoch_] = await Promise.all([flow.firstBlock(), flow.blocksPerEpoch()]);
-    const [firstBlock, blocksPerEpoch] = [firstBlock_.toNumber(), blocksPerEpoch_.toNumber()];
+    const [firstBlock, blocksPerEpoch] = await Promise.all([flow.firstBlock(), flow.blocksPerEpoch()]);
 
     const n = await getBlockNumber();
     // const parser = new ethers.utils.Interface([flow.interface.getEvent("NewEpoch")]);
@@ -38,8 +37,8 @@ async function printContext(flow: FixedPriceFlow, batches: number = 10) {
         const events = await flow.queryFilter(flow.filters.NewEpoch(), i - 10000, i);
         for (const event of events.reverse()) {
             const args = event.args;
-            const epoch = parseInt(event.topics[2], 16);
-            const epochStart = firstBlock + blocksPerEpoch * epoch;
+            const epoch = BigInt(parseInt(event.topics[2], 16));
+            const epochStart = Number(firstBlock + blocksPerEpoch * epoch);
 
             const timestamp =
                 (await ethers.provider.getBlock(epochStart))?.timestamp ??
@@ -57,7 +56,7 @@ async function printContext(flow: FixedPriceFlow, batches: number = 10) {
                 args.context,
                 args.sender,
                 timeString,
-                args.flowLength.toNumber()
+                args.flowLength
             );
         }
     }
@@ -73,8 +72,8 @@ async function printReward(reward: OnePoolReward, batches: number = 10) {
             console.log(
                 "%d\tGas: %d (%d)\t%s",
                 event.blockNumber,
-                receipt.gasUsed.toNumber(),
-                tx.gasLimit.toNumber(),
+                receipt.gasUsed,
+                tx.gasLimit,
                 event.transactionHash
             );
         }
@@ -82,23 +81,24 @@ async function printReward(reward: OnePoolReward, batches: number = 10) {
 }
 
 async function printNextEpoch(flow: FixedPriceFlow) {
-    const [firstBlock_, blocksPerEpoch_, epoch_] = await Promise.all([
+    const [firstBlock, blocksPerEpoch, epoch] = await Promise.all([
         flow.firstBlock(),
         flow.blocksPerEpoch(),
         flow.epoch(),
     ]);
-    const [firstBlock, blocksPerEpoch, epoch] = [firstBlock_.toNumber(), blocksPerEpoch_.toNumber(), epoch_.toNumber()];
-    const nextEpoch = firstBlock + blocksPerEpoch * (epoch + 1);
+    // console.log( typeof(firstBlock_));
+    // const [firstBlock, blocksPerEpoch, epoch] = [firstBlock_.toNumber(), blocksPerEpoch_.toNumber(), epoch_.toNumber()];
+    const nextEpoch = firstBlock + blocksPerEpoch * (epoch + 1n);
     const currentBlock = await getBlockNumber();
-    const context = await flow.callStatic.makeContextWithResult();
+    const context = await flow.makeContextWithResult.staticCall();
 
     console.log("Current Block: %d", currentBlock);
-    console.log("current length: %d", context.flowLength.toNumber());
+    console.log("current length: %d", context.flowLength);
     console.log("current flow root: %s", context.flowRoot);
     console.log("first block: %d", firstBlock);
     console.log("blocks per epoch: %d", blocksPerEpoch);
     console.log("epoch: %d", epoch);
-    console.log("next epoch start: %d (%d blocks left)", nextEpoch, nextEpoch - currentBlock);
+    console.log("next epoch start: %d (%d blocks left)", nextEpoch, nextEpoch - BigInt(currentBlock));
 }
 
 async function updateContext(flow: FixedPriceFlow) {
@@ -118,12 +118,14 @@ async function printMineConfig(mine: PoraMine) {
     console.log("FixedQuality:", fixedQuality);
 }
 
-const u256_max = BigNumber.from(1).shl(256);
+const u256_max = 1n << 256n;
 
 async function main() {
     const [owner, me, me2] = await ethers.getSigners();
 
     const { mine, flow, reward } = await contracts(me2);
+
+    console.log(await mine.canSubmit.staticCall())
 
     // console.log(me.address)
     // console.log(await mine.minerIds(me.address))
@@ -135,7 +137,7 @@ async function main() {
 
     // await updateContext(flow);
     await printNextEpoch(flow);
-    console.log("Target Quality", u256_max.div(await mine.targetQuality()).toNumber());
+    // console.log("Target Quality", u256_max / (await mine.targetQuality()).toNumber());
     await printContext(flow, 2);
     await printReward(reward);
     // await printMineConfig(mine)
