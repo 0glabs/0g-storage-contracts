@@ -4,10 +4,10 @@ pragma solidity >=0.8.0 <0.9.0;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./FlowTreeLib.sol";
-import "../utils/IDigestHistory.sol";
 import "../utils/ZgInitializable.sol";
 import "../utils/DigestHistory.sol";
 import "../utils/ZgsSpec.sol";
+import "../interfaces/IDigestHistory.sol";
 import "../interfaces/IMarket.sol";
 import "../interfaces/IReward.sol";
 import "../interfaces/IFlow.sol";
@@ -31,11 +31,13 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
     uint public immutable blocksPerEpoch;
     uint public immutable firstBlock;
 
+    // reserved storage slots for base contract upgrade in future
+    uint[50] private __gap;
+
     // states
     address payable public market;
 
     FlowTree public tree;
-    uint[50] private __gap;
 
     uint public submissionIndex;
     uint public epoch;
