@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "../utils/IDigestHistory.sol";
 import "../utils/DigestHistory.sol";
 import "../utils/BitMask.sol";
 import "../utils/ZgsSpec.sol";
@@ -13,6 +12,7 @@ import "../utils/Blake2b.sol";
 import "../interfaces/IMarket.sol";
 import "../interfaces/IFlow.sol";
 import "../interfaces/IReward.sol";
+import "../interfaces/IDigestHistory.sol";
 
 import "./RecallRange.sol";
 import "./MineLib.sol";

@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./IDigestHistory.sol";
+import "../interfaces/IDigestHistory.sol";
 
 contract DigestHistory is IDigestHistory, Ownable {
     bytes32[] private digests;
