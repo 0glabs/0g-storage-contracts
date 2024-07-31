@@ -46,6 +46,7 @@ interface IFlow {
         Submission[] memory submissions
     )
         external
+        payable
         returns (uint[] memory indexes, bytes32[] memory digests, uint[] memory startIndexes, uint[] memory lengths);
 
     function blocksPerEpoch() external view returns (uint);
@@ -66,17 +67,17 @@ interface IFlow {
 
     function makeContextWithResult() external returns (MineContext memory);
 
-    function market() external view returns (address);
+    function market() external view returns (address payable);
 
     function numSubmissions() external view returns (uint);
 
-    function queryContextAtPosition(uint128 targetPosition) external returns (EpochRange memory range);
+    function queryContextAtPosition(uint128 targetPosition) external returns (EpochRangeWithContextDigest memory range);
 
     function rootHistory() external view returns (IDigestHistory);
 
     function submissionIndex() external view returns (uint);
 
-    function submit(Submission memory submission) external returns (uint, bytes32, uint, uint);
+    function submit(Submission memory submission) external payable returns (uint, bytes32, uint, uint);
 
     function tree() external view returns (uint currentLength, uint unstagedHeight);
 }
