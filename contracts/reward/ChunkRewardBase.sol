@@ -60,7 +60,7 @@ abstract contract ChunkRewardBase is IReward, PullPayment, ZgInitializable, Acce
         bool finalizeLastChunk = (afterLength == (lastPricingIndex + 1) * SECTORS_PER_PRICE);
 
         if (firstPricingIndex == lastPricingIndex) {
-            rewards[firstPricingIndex].addReward(msg.value, finalizeLastChunk);
+            rewards[firstPricingIndex].addReward(restFee, finalizeLastChunk);
         } else {
             rewards[firstPricingIndex].addReward((feePerPricingChunk * firstPricingLength) / SECTORS_PER_PRICE, true);
 
