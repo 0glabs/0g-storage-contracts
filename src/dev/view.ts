@@ -2,20 +2,20 @@
 
 import { Signer } from "ethers";
 import { ethers } from "hardhat";
-import { FixedPriceFlow, OnePoolReward, PoraMine } from "../../typechain-types";
+import { FixedPriceFlow, ChunkLinearReward, PoraMine } from "../../typechain-types";
 
 interface ViewContracts {
     mine: PoraMine;
     flow: FixedPriceFlow;
-    reward: OnePoolReward;
+    reward: ChunkLinearReward;
 }
 
 async function contracts(me: Signer): Promise<ViewContracts> {
-    const mine = await ethers.getContractAt("PoraMine", "0x85F6722319538A805ED5733c5F4882d96F1C7384", me);
+    const mine = await ethers.getContractAt("PoraMine", "0x6176AA095C47A7F79deE2ea473B77ebf50035421", me);
 
-    const flow = await ethers.getContractAt("FixedPriceFlow", "0x8873cc79c5b3b5666535C825205C9a128B1D75F1", me);
+    const flow = await ethers.getContractAt("FixedPriceFlow", "0xB7e39604f47c0e4a6Ad092a281c1A8429c2440d3", me);
 
-    const reward = await ethers.getContractAt("OnePoolReward", "0x233B2768332e4Bae542824c93cc5c8ad5d44517E", me);
+    const reward = await ethers.getContractAt("ChunkLinearReward", "0x4a62e08198b8B2a791532280bEA976EE3b024d79", me);
 
     return { mine, flow, reward };
 }
@@ -62,7 +62,7 @@ async function printContext(flow: FixedPriceFlow, batches: number = 10) {
     }
 }
 
-async function printReward(reward: OnePoolReward, batches: number = 10) {
+async function printReward(reward: ChunkLinearReward, batches: number = 10) {
     const n = await getBlockNumber();
 
     for (let i = n; i > n - 10000 * batches; i -= 10000) {
@@ -148,7 +148,7 @@ async function main() {
     // console.log(tx)
     // console.log(await tx.wait())
 
-    console.log((await mine.lastMinedEpoch()).toNumber());
+    console.log((await mine.lastMinedEpoch()));
 }
 
 main()
