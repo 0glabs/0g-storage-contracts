@@ -8,11 +8,11 @@ import "../utils/OnlySender.sol";
 import "../interfaces/IReward.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/PullPayment.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 
 import "./Reward.sol";
+import "../utils/PullPayment.sol";
 
 abstract contract ChunkRewardBase is IReward, PullPayment, ZgInitializable, AccessControlEnumerable {
     using RewardLibrary for Reward;
@@ -36,6 +36,9 @@ abstract contract ChunkRewardBase is IReward, PullPayment, ZgInitializable, Acce
 
         market = market_;
         mine = mine_;
+
+        // deploy pullpayment escrow
+        _escrow = new Escrow();
     }
 
     function fillReward(uint beforeLength, uint chargedSectors) external payable {
