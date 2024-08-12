@@ -6,4 +6,8 @@ import "../interfaces/IFlow.sol";
 
 contract DummyMarket {
     function chargeFee(uint beforeLength, uint uploadSectors, uint paddingSectors) external {}
+
+    function pricePerSector() external pure returns (uint) {
+        return 0;
+    }
 }

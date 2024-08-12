@@ -69,6 +69,12 @@ library SubmissionLibrary {
     }
 
     function digest(Submission memory submission) internal pure returns (bytes32) {
-        return keccak256(abi.encode(submission.nodes));
+        bytes32[] memory hashes = new bytes32[](submission.nodes.length);
+
+        for (uint i = 0; i < submission.nodes.length; i++) {
+            hashes[i] = submission.nodes[i].root;
+        }
+
+        return keccak256(abi.encodePacked(hashes));
     }
 }
