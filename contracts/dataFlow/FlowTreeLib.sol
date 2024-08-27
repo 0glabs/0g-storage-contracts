@@ -19,7 +19,6 @@ library FlowTreeLib {
     }
 
     function insertNode(FlowTree storage tree, bytes32 nodeRoot, uint height) internal returns (uint) {
-        // console.log("<<insert node>>");
         uint startIndex = nextAlign(tree.currentLength, height);
         uint afterLength = startIndex + (1 << height);
 
@@ -41,32 +40,19 @@ library FlowTreeLib {
         bytes32 right;
         bytes32 currentHeightHash = nodeRoot;
 
-        // console.log(
-        //     "Current height %d, start index %d ",
-        //     totalHeight,
-        //     startIndex
-        // );
         for (uint i = height; i < totalHeight; i++) {
             if ((startIndex >> i) % 2 == 0) {
                 tree.openNodes[i] = currentHeightHash;
                 tree.unstagedHeight = i + 1;
-                if (i != totalHeight - 1) {
-                    // console.log("early stop at height %d", i);
-                }
                 break;
             } else {
                 left = tree.openNodes[i];
                 right = currentHeightHash;
+                currentHeightHash = keccak256(abi.encode(left, right));
             }
-            // console.log("process height %d", i);
-            // console.logBytes(abi.encode(left, right));
-            currentHeightHash = keccak256(abi.encode(left, right));
-            // console.logBytes32(currentHeightHash);
         }
 
         tree.currentLength = startIndex + (1 << height);
-
-        // console.log("insert node done");
 
         return startIndex;
     }
@@ -118,10 +104,7 @@ library FlowTreeLib {
         bytes32 right = zeros(tree.unstagedHeight - 1);
 
         for (uint i = tree.unstagedHeight; i < totalHeight; i++) {
-            // console.log("commit root: process height %d", i - 1);
-            // console.logBytes(abi.encode(left, right));
             bytes32 currentHeightHash = keccak256(abi.encode(left, right));
-            // console.logBytes32(currentHeightHash);
             if ((tree.currentLength >> i) % 2 == 0) {
                 left = currentHeightHash;
                 right = zeros(i);
@@ -145,10 +128,7 @@ library FlowTreeLib {
         bytes32 right = zeros(tree.unstagedHeight - 1);
 
         for (uint i = tree.unstagedHeight; i < totalHeight; i++) {
-            // console.log("commit unstaged: process height %d", i - 1);
-            // console.logBytes(abi.encode(left, right));
             bytes32 currentHeightHash = keccak256(abi.encode(left, right));
-            // console.logBytes32(currentHeightHash);
             if ((tree.currentLength >> i) % 2 == 0) {
                 left = currentHeightHash;
                 right = zeros(i);
