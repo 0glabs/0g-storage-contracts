@@ -42,8 +42,6 @@ library Exponential {
         }
 
         uint powerX127 = _talorExpand64X127(int(fractionSmallX64));
-        // console.log("fractionLargeX64 = %d", fractionLargeX64);
-        // console.log("powerX127 = %d", powerX127 - (1<<127));
         if ((fractionLargeX64 & BIT54) != 0) {
             unchecked {
                 powerX127 *= ROOT_POW10X127;
@@ -104,14 +102,12 @@ library Exponential {
             }
             powerX127 >>= 127;
         }
-        // console.log("powerX127 = %d", powerX127 - (1<<127));
 
         if (integer < 31) {
             powerX96 = powerX127 >> (31 - integer);
         } else {
             powerX96 = powerX127 << (integer - 31);
         }
-        // console.log("powerX96 = %d", powerX96 - (1<<96));
     }
 
     function powHalf64X96(uint exponentX64) internal pure returns (uint powerX96) {
