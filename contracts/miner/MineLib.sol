@@ -86,7 +86,6 @@ library MineLib {
         PoraAnswer memory answer,
         bytes32[UNITS_PER_SEAL] memory unsealedData
     ) internal pure returns (bytes32) {
-        // console.log("Compute leaf");
         // Compute leaf of hash
         for (uint i = 0; i < UNITS_PER_SEAL; i += UNITS_PER_SECTOR) {
             bytes32 x;
@@ -94,23 +93,17 @@ library MineLib {
                 x := keccak256(add(unsealedData, mul(i, 32)), 256 /*BYTES_PER_SECTOR*/)
             }
             unsealedData[i] = x;
-            // console.logBytes32(x);
         }
 
         for (uint i = UNITS_PER_SECTOR; i < UNITS_PER_SEAL; i <<= 1) {
-            // console.log("i=%d", i);
             for (uint j = 0; j < UNITS_PER_SEAL; j += i << 1) {
                 bytes32 left = unsealedData[j];
                 bytes32 right = unsealedData[j + i];
                 unsealedData[j] = keccak256(abi.encode(left, right));
-                // console.logBytes32(unsealedData[j]);
             }
         }
         bytes32 currentHash = unsealedData[0];
         delete unsealedData;
-
-        // console.log("Seal root");
-        // console.logBytes32(currentHash);
 
         uint unsealedIndex = answer.recallPosition / SECTORS_PER_SEAL;
 
@@ -125,10 +118,7 @@ library MineLib {
                 right = currentHash;
             }
             currentHash = keccak256(abi.encode(left, right));
-            // console.log("sibling");
-            // console.logBytes32(answer.merkleProof[i]);
-            // console.log("current");
-            // console.logBytes32(currentHash);
+
             unsealedIndex /= 2;
         }
         return currentHash;
