@@ -2,7 +2,7 @@
 
 import { Signer } from "ethers";
 import { ethers } from "hardhat";
-import { FixedPriceFlow, ChunkLinearReward, PoraMine } from "../../typechain-types";
+import { ChunkLinearReward, FixedPriceFlow, PoraMine } from "../../typechain-types";
 
 interface ViewContracts {
     mine: PoraMine;
@@ -69,13 +69,7 @@ async function printReward(reward: ChunkLinearReward, batches: number = 10) {
         const events = await reward.queryFilter(reward.filters.DistributeReward(), i - 10000, i);
         for (const event of events.reverse()) {
             const [tx, receipt] = await Promise.all([event.getTransaction(), event.getTransactionReceipt()]);
-            console.log(
-                "%d\tGas: %d (%d)\t%s",
-                event.blockNumber,
-                receipt.gasUsed,
-                tx.gasLimit,
-                event.transactionHash
-            );
+            console.log("%d\tGas: %d (%d)\t%s", event.blockNumber, receipt.gasUsed, tx.gasLimit, event.transactionHash);
         }
     }
 }
@@ -125,7 +119,7 @@ async function main() {
 
     const { mine, flow, reward } = await contracts(me2);
 
-    console.log(await mine.canSubmit.staticCall())
+    console.log(await mine.canSubmit.staticCall());
 
     // console.log(me.address)
     // console.log(await mine.minerIds(me.address))
@@ -148,7 +142,7 @@ async function main() {
     // console.log(tx)
     // console.log(await tx.wait())
 
-    console.log((await mine.lastMinedEpoch()));
+    console.log(await mine.lastMinedEpoch());
 }
 
 main()
