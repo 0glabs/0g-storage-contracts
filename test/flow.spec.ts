@@ -51,7 +51,7 @@ describe("ZeroGStorage Flow", function () {
             ],
         });
     });
-    
+
     it("submit 960 sectors, pad to segment #2", async () => {
         const root = Buffer.from("ccc2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470", "hex");
         const result = await flow.submit.staticCall({
