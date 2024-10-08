@@ -2,6 +2,8 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "../interfaces/Submission.sol";
+import "../utils/ZgsSpec.sol";
 
 struct FlowTree {
     uint currentLength;
@@ -10,12 +12,26 @@ struct FlowTree {
 }
 
 library FlowTreeLib {
+    using SubmissionLibrary for Submission;
     using SafeMath for uint;
 
     function initialize(FlowTree storage tree, bytes32 identifier) internal {
         tree.currentLength = 1;
         tree.openNodes.push(identifier);
         tree.unstagedHeight = 1;
+    }
+
+    function pad(FlowTree storage tree, Submission memory submission) internal {
+        uint length = submission.size();
+        uint startIndex = nextAlign(tree.currentLength, submission.nodes[0].height);
+        if (
+            startIndex % SECTORS_PER_SEGMENT != 0 &&
+            startIndex / SECTORS_PER_SEGMENT != (startIndex + length) / SECTORS_PER_SEGMENT
+        ) {
+            // start index is not aligned with segment size and end index is not in the same segment
+            // move to the start of next segment
+            tree.currentLength = startIndex + SECTORS_PER_SEGMENT - (startIndex % SECTORS_PER_SEGMENT);
+        }
     }
 
     function insertNode(FlowTree storage tree, bytes32 nodeRoot, uint height) internal returns (uint) {
