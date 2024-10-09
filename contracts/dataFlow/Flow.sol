@@ -133,6 +133,7 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
 
     function _insertNodeList(Submission memory submission) internal returns (uint startIndex) {
         uint previousLength = tree.currentLength;
+        tree.pad(submission);
         for (uint i = 0; i < submission.nodes.length; i++) {
             bytes32 nodeRoot = submission.nodes[i].root;
             uint height = submission.nodes[i].height;
