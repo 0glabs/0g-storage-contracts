@@ -13,6 +13,7 @@ uint constant BYTES_PER_SEAL = 4 * KB;
 uint constant BYTES_PER_PAD = 64 * KB;
 uint constant BYTES_PER_LOAD = 256 * KB;
 uint constant BYTES_PER_PRICE = 8 * GB;
+uint constant BYTES_PER_SEGMENT = 256 * KB;
 
 uint constant BYTES_PER_UNIT = 32;
 uint constant BYTES_PER_BHASH = 64;
@@ -23,6 +24,7 @@ uint constant UNITS_PER_SEAL = BYTES_PER_SEAL / BYTES_PER_UNIT;
 uint constant SECTORS_PER_SEAL = BYTES_PER_SEAL / BYTES_PER_SECTOR;
 uint constant SECTORS_PER_PRICE = BYTES_PER_PRICE / BYTES_PER_SECTOR;
 uint constant SECTORS_PER_LOAD = BYTES_PER_LOAD / BYTES_PER_SECTOR;
+uint constant SECTORS_PER_SEGMENT = BYTES_PER_SEGMENT / BYTES_PER_SECTOR;
 
 uint constant SEALS_PER_LOAD = BYTES_PER_LOAD / BYTES_PER_SEAL;
 uint constant PADS_PER_LOAD = BYTES_PER_LOAD / BYTES_PER_PAD;
