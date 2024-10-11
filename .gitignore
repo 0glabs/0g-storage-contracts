@@ -1,6 +1,7 @@
 .pnp.*
 .yarn
 .yarnrc
+.openzeppelin
 out/
 cache/
 node_modules/

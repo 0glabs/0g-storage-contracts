@@ -61,6 +61,8 @@ interface IFlow {
 
     function getEpochRange(bytes32 digest) external view returns (EpochRange memory);
 
+    function getFlowRootByTxSeq(uint txSeq) external view returns (bytes32);
+
     function makeContext() external;
 
     function makeContextFixedTimes(uint cnt) external;

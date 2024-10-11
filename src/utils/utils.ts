@@ -7,7 +7,7 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 //
 // 1. We import the types at compile time to ensure type safety. Hardhat does not report an error even
 // if these files are not yet generated, as long as the "--typecheck" command-line argument is not used.
-import { ContractFactory, ContractRunner, Signer } from "ethers";
+import { BaseContract, ContractFactory, ContractRunner, ethers, Signer } from "ethers";
 import * as TypechainTypes from "../../typechain-types";
 // 2. We import the values at runtime and silently ignore any exceptions.
 export let Factories = {} as typeof TypechainTypes;
@@ -40,6 +40,9 @@ class ContractMeta<T> {
     }
 }
 
+export const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
+export const PAUSER_ROLE = ethers.id("PAUSER_ROLE");
+
 export const CONTRACTS = {
     Cashier: new ContractMeta(Factories.Cashier__factory),
     FixedPriceFlow: new ContractMeta(Factories.FixedPriceFlow__factory),
@@ -55,6 +58,12 @@ export const CONTRACTS = {
     ChunkLinearReward: new ContractMeta(Factories.ChunkLinearReward__factory),
     CashierTest: new ContractMeta(Factories.CashierTest__factory),
 } as const;
+
+type GetContractTypeFromContractMeta<F> = F extends ContractMeta<infer C> ? C : never;
+
+type AnyContractType = GetContractTypeFromContractMeta<(typeof CONTRACTS)[keyof typeof CONTRACTS]>;
+
+export type AnyContractMeta = ContractMeta<AnyContractType>;
 
 const UPGRADEABLE_BEACON = "UpgradeableBeacon";
 const BEACON_PROXY = "BeaconProxy";
@@ -120,4 +129,26 @@ export async function getTypedContract<T>(
         signer = await hre.ethers.getSigner(signer);
     }
     return contract.factory.connect(address, signer);
+}
+
+export async function transact(contract: BaseContract, methodName: string, params: unknown[], execute: boolean) {
+    if (execute) {
+        await (await contract.getFunction(methodName).send(...params)).wait();
+    } else {
+        console.log(`to: ${await contract.getAddress()}`);
+        console.log(`func: ${contract.interface.getFunction(methodName)?.format()}`);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        console.log(`params: ${JSON.stringify(params, (_, v) => (typeof v === "bigint" ? v.toString() : v))}`);
+        console.log(`data: ${contract.interface.encodeFunctionData(methodName, params)}`);
+    }
+}
+
+export function validateError(e: unknown, msg: string) {
+    if (e instanceof Error) {
+        if (!e.toString().includes(msg)) {
+            throw Error(`unexpected error: ${String(e)}`);
+        }
+    } else {
+        throw Error(`unexpected error: ${String(e)}`);
+    }
 }

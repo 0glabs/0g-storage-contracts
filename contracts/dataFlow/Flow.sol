@@ -47,6 +47,8 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
     mapping(bytes32 => EpochRange) private epochRanges;
     EpochRangeWithContextDigest[] private epochRangeHistory;
 
+    mapping(uint => bytes32) private rootByTxSeq;
+
     error InvalidSubmission();
 
     constructor(uint blocksPerEpoch_, uint deployDelay_) {
@@ -125,6 +127,8 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
         bytes32 digest = submission.digest();
         uint index = submissionIndex;
         submissionIndex += 1;
+
+        rootByTxSeq[index] = tree.root();
 
         emit Submit(msg.sender, digest, index, startIndex, length, submission);
 
@@ -248,5 +252,9 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
 
     function numSubmissions() external view returns (uint) {
         return submissionIndex;
+    }
+
+    function getFlowRootByTxSeq(uint txSeq) public view returns (bytes32) {
+        return rootByTxSeq[txSeq];
     }
 }
