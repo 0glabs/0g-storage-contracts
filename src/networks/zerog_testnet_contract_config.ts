@@ -5,7 +5,8 @@ export const ZerogTestnetContractConfigs: NetworkConfigs = {
         settings: 0,
         initDifficulty: 180000,
     },
-    blocksPerEpoch: 1200,
+    blocksPerEpoch: 200,
     lifetimeMonth: 3,
     flowDeployDelay: 0,
+    unitPrice: 1,
 };

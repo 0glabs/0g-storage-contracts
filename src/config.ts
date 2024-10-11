@@ -14,6 +14,7 @@ export interface NetworkConfigs {
     // Upon enabling the economic model, this controls the data storage validity period and the reward release cycle. The annual storage cost per GB is a constant in the contract named `ANNUAL_ZGS_TOKENS_PER_GB`.
     lifetimeMonth: number;
     flowDeployDelay: number;
+    unitPrice: number;
 }
 
 export const DefaultConfig: NetworkConfigs = {
@@ -24,6 +25,7 @@ export const DefaultConfig: NetworkConfigs = {
     blocksPerEpoch: 1000000000,
     lifetimeMonth: 3,
     flowDeployDelay: 0,
+    unitPrice: 1,
 };
 
 export const GlobalConfig: { [key: string]: NetworkConfigs } = {

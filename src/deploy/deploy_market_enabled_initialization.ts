@@ -26,7 +26,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         // Use `lifetimeMonth * MONTH_ZGS_UNITS_PER_SECTOR` as `pricePerSector`
         await (
             await fixedPriceMarket_.initialize(
-                (BigInt(config.lifetimeMonth) * 256n * 10n * 1_000_000_000_000_000_000n) / 1024n / 1024n / 1024n / 12n,
+                (BigInt(config.lifetimeMonth * config.unitPrice) * 256n * 10n * 1_000_000_000_000_000_000n) / 1024n / 1024n / 1024n / 12n,
                 flowAddress,
                 rewardAddress
             )
