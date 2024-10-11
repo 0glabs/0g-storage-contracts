@@ -8,4 +8,5 @@ export const ZerogContractConfigs: NetworkConfigs = {
     blocksPerEpoch: 1200,
     lifetimeMonth: 3,
     flowDeployDelay: 0,
+    unitPrice: 1,
 };
