@@ -20,7 +20,9 @@ const userConfig: HttpNetworkUserConfig = {
     accounts: [DEPLOYER_KEY ? DEPLOYER_KEY : DEFAULT_DEPLOYER],
 };
 
+import "./src/tasks/access";
 import "./src/tasks/codesize";
+import "./src/tasks/upgrade";
 
 const config: HardhatUserConfig = {
     paths: {
@@ -68,7 +70,7 @@ const config: HardhatUserConfig = {
         },
         zgTestnet: {
             ...userConfig,
-            url: "http://0.0.0.0:8545",
+            url: "https://evmrpc-testnet.0g.ai",
         },
     },
     namedAccounts: {

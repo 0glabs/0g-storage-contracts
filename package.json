@@ -28,7 +28,7 @@
     "@nomicfoundation/ignition-core": "^0.15.5",
     "@openzeppelin/contracts": "4.8.3",
     "@openzeppelin/contracts-upgradeable": "^4.1.0",
-    "@openzeppelin/hardhat-upgrades": "^3.0.5",
+    "@openzeppelin/hardhat-upgrades": "^3.5.0",
     "@typechain/ethers-v6": "^0.5.1",
     "@typechain/hardhat": "^9.1.0",
     "@types/mocha": "^10.0.6",
