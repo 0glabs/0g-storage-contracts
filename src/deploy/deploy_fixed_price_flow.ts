@@ -1,11 +1,14 @@
 import { DeployFunction } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { getConfig } from "../config";
 import { CONTRACTS, deployInBeaconProxy } from "../utils/utils";
+import { getConstructorArgs } from "./constructor_args";
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-    const config = getConfig(hre.network.name);
-    await deployInBeaconProxy(hre, CONTRACTS.FixedPriceFlow, [config.blocksPerEpoch, config.flowDeployDelay]);
+    await deployInBeaconProxy(
+        hre,
+        CONTRACTS.FixedPriceFlow,
+        getConstructorArgs(hre.network.name, CONTRACTS.FixedPriceFlow.name)
+    );
 };
 
 deploy.tags = [CONTRACTS.FixedPriceFlow.name, "market-enabled"];

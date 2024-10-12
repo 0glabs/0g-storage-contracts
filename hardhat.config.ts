@@ -74,8 +74,8 @@ const config: HardhatUserConfig = {
         },
         zgTestnetTurbo: {
             ...userConfig,
-            url: "http://0.0.0.0:8545",
-        }
+            url: "https://evmrpc-testnet.0g.ai",
+        },
     },
     namedAccounts: {
         deployer: 0,

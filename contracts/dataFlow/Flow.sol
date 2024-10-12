@@ -128,6 +128,7 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
         uint index = submissionIndex;
         submissionIndex += 1;
 
+        tree.commitRoot();
         rootByTxSeq[index] = tree.root();
 
         emit Submit(msg.sender, digest, index, startIndex, length, submission);

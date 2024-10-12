@@ -1,13 +1,8 @@
 import { task, types } from "hardhat/config";
 import { UpgradeableBeacon } from "../../typechain-types";
-import { transact, validateError } from "../utils/utils";
+import { getConstructorArgs } from "../deploy/constructor_args";
+import { CONTRACTS, transact, validateError } from "../utils/utils";
 import { getProxyInfo } from "./access";
-
-const CONSTRUCTOR_ARGS: { [key: string]: unknown[] } = {
-    FixedPriceFlow: [0n, 0n],
-    PoraMine: [0n],
-    ChunkLinearReward: [0n],
-};
 
 task("upgrade", "upgrade contract")
     .addParam("name", "name of the proxy contract", undefined, types.string, false)
@@ -24,7 +19,7 @@ task("upgrade", "upgrade contract")
         await hre.upgrades.validateUpgrade(await beacon.implementation(), newImpl, {
             unsafeAllow: ["constructor", "state-variable-immutable"],
             kind: "beacon",
-            constructorArgs: taskArgs.artifact in CONSTRUCTOR_ARGS ? CONSTRUCTOR_ARGS[taskArgs.artifact] : [],
+            constructorArgs: getConstructorArgs(hre.network.name, taskArgs.artifact),
         });
 
         const result = await deployments.deploy(`${taskArgs.name}Impl`, {
@@ -40,7 +35,7 @@ task("upgrade", "upgrade contract")
 
 task("upgrade:validate", "validate upgrade")
     .addParam("old", "name of the old contract", undefined, types.string, false)
-    .addParam("new", "name of the new contract", undefined, types.string, false)
+    .addParam("new", "artifact of the new contract", undefined, types.string, false)
     .setAction(async (taskArgs: { old: string; new: string }, hre) => {
         const oldAddr = await (await hre.ethers.getContract(`${taskArgs.old}Impl`)).getAddress();
         const newImpl = await hre.ethers.getContractFactory(taskArgs.new);
@@ -49,7 +44,7 @@ task("upgrade:validate", "validate upgrade")
         await hre.upgrades.validateUpgrade(oldAddr, newImpl, {
             unsafeAllow: ["constructor", "state-variable-immutable"],
             kind: "beacon",
-            constructorArgs: taskArgs.old in CONSTRUCTOR_ARGS ? CONSTRUCTOR_ARGS[taskArgs.old] : [],
+            constructorArgs: getConstructorArgs(hre.network.name, taskArgs.new),
         });
     });
 
@@ -62,7 +57,8 @@ task("upgrade:forceImport", "import contracts")
             kind: "beacon",
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-expect-error
-            constructorArgs: taskArgs.name in CONSTRUCTOR_ARGS ? CONSTRUCTOR_ARGS[taskArgs.name] : [],
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+            constructorArgs: getConstructorArgs(hre.network.name, CONTRACTS[taskArgs.name].name),
         });
     });
 
@@ -76,7 +72,8 @@ task("upgrade:forceImportAll", "import contracts").setAction(async (_taskArgs, h
                 kind: "beacon",
                 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                 // @ts-expect-error
-                constructorArgs: name in CONSTRUCTOR_ARGS ? CONSTRUCTOR_ARGS[name] : [],
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+                constructorArgs: getConstructorArgs(hre.network.name, CONTRACTS[name].name),
             });
             console.log(`force imported ${name}.`);
         } catch (e) {
