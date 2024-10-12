@@ -26,7 +26,7 @@ library FlowTreeLib {
         uint startIndex = nextAlign(tree.currentLength, submission.nodes[0].height);
         if (
             startIndex % SECTORS_PER_SEGMENT != 0 &&
-            startIndex / SECTORS_PER_SEGMENT != (startIndex + length) / SECTORS_PER_SEGMENT
+            startIndex / SECTORS_PER_SEGMENT != (startIndex + length - 1) / SECTORS_PER_SEGMENT
         ) {
             // start index is not aligned with segment size and end index is not in the same segment
             // move to the start of next segment
