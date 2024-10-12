@@ -1,11 +1,14 @@
 import { DeployFunction } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { getConfig } from "../config";
 import { CONTRACTS, deployInBeaconProxy } from "../utils/utils";
+import { getConstructorArgs } from "./constructor_args";
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-    const config = getConfig(hre.network.name);
-    await deployInBeaconProxy(hre, CONTRACTS.ChunkLinearReward, [config.lifetimeMonth * 31 * 86400]);
+    await deployInBeaconProxy(
+        hre,
+        CONTRACTS.ChunkLinearReward,
+        getConstructorArgs(hre.network.name, CONTRACTS.ChunkLinearReward.name)
+    );
 };
 
 deploy.tags = [CONTRACTS.ChunkLinearReward.name, "market-enabled"];

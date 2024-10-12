@@ -1,11 +1,14 @@
 import { DeployFunction } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { getConfig } from "../config";
 import { CONTRACTS, deployInBeaconProxy } from "../utils/utils";
+import { getConstructorArgs } from "./constructor_args";
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-    const config = getConfig(hre.network.name);
-    await deployInBeaconProxy(hre, CONTRACTS.OnePoolReward, [config.lifetimeMonth * 31 * 86400]);
+    await deployInBeaconProxy(
+        hre,
+        CONTRACTS.OnePoolReward,
+        getConstructorArgs(hre.network.name, CONTRACTS.OnePoolReward.name)
+    );
 };
 
 deploy.tags = [CONTRACTS.OnePoolReward.name];
