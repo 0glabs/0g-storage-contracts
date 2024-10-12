@@ -7,7 +7,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     // initialize all contracts
     const config = getConfig(hre.network.name);
     const poraMine_ = await getTypedContract(hre, CONTRACTS.PoraMine);
-    const fixedPriceMarket_ = await getTypedContract(hre, CONTRACTS.FixedPriceMarket);
+    const fixedPriceMarket_ = await getTypedContract(hre, CONTRACTS.FixedPrice);
     const chunkLinearReward_ = await getTypedContract(hre, CONTRACTS.ChunkLinearReward);
     const fixedPriceFlow_ = await getTypedContract(hre, CONTRACTS.FixedPriceFlow);
 
@@ -53,7 +53,7 @@ deploy.tags = ["market-enabled"];
 deploy.dependencies = [
     CONTRACTS.PoraMine.name,
     CONTRACTS.ChunkLinearReward.name,
-    CONTRACTS.FixedPriceMarket.name,
+    CONTRACTS.FixedPrice.name,
     CONTRACTS.FixedPriceFlow.name,
 ];
 export default deploy;
