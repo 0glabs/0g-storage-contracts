@@ -242,6 +242,11 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
         return getContext();
     }
 
+    function computeFlowRoot() public returns (bytes32) {
+        tree.commitRoot();
+        return tree.root();
+    }
+
     function getContext() public view returns (MineContext memory) {
         MineContext memory _context = context;
         return _context;
