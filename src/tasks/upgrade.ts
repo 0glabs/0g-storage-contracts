@@ -14,20 +14,14 @@ task("upgrade", "upgrade contract")
         const { deployments, getNamedAccounts } = hre;
         const { deployer } = await getNamedAccounts();
         const beacon: UpgradeableBeacon = await hre.ethers.getContract(`${taskArgs.name}Beacon`, deployer);
-        const newImpl = await hre.ethers.getContractFactory(taskArgs.artifact);
-
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-expect-error
-        await hre.upgrades.validateUpgrade(await beacon.implementation(), newImpl, {
-            unsafeAllow: ["constructor", "state-variable-immutable"],
-            kind: "beacon",
-            constructorArgs: getConstructorArgs(hre.network.name, taskArgs.artifact),
-        });
 
         const result = await deployments.deploy(`${taskArgs.name}Impl`, {
             from: deployer,
             contract: taskArgs.artifact,
-            args: [],
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-expect-error
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+            args: getConstructorArgs(hre.network.name, CONTRACTS[taskArgs.name].name),
             log: true,
         });
         console.log(`new implementation deployed: ${result.address}`);
@@ -87,7 +81,6 @@ task("upgrade:forceImportAll", "import contracts").setAction(async (_taskArgs, h
             console.log(`${name} already imported.`);
         }
     }
-    console.log(tmpFilePath);
     if (fs.existsSync(tmpFilePath)) {
         const newFileName = `${hre.network.name}-${chainId}.json`;
         const newFilePath = path.resolve(__dirname, `../../.openzeppelin/${newFileName}`);
