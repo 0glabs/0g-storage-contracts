@@ -81,7 +81,6 @@ task("upgrade:forceImportAll", "import contracts").setAction(async (_taskArgs, h
             console.log(`${name} already imported.`);
         }
     }
-    console.log(tmpFilePath);
     if (fs.existsSync(tmpFilePath)) {
         const newFileName = `${hre.network.name}-${chainId}.json`;
         const newFilePath = path.resolve(__dirname, `../../.openzeppelin/${newFileName}`);
