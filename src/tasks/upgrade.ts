@@ -2,7 +2,7 @@ import * as fs from "fs";
 import { task, types } from "hardhat/config";
 import path from "path";
 import { UpgradeableBeacon } from "../../typechain-types";
-import { getConstructorArgs } from "../deploy/constructor_args";
+import { getConstructorArgs } from "../utils/constructor_args";
 import { CONTRACTS, transact, validateError } from "../utils/utils";
 import { getProxyInfo } from "./access";
 
