@@ -1,5 +1,5 @@
 import { getConfig } from "../config";
-import { CONTRACTS } from "../utils/utils";
+import { CONTRACTS } from "./utils";
 
 export function getConstructorArgs(network: string, name: string): unknown[] {
     const config = getConfig(network);
