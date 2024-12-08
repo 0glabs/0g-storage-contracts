@@ -174,7 +174,7 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
         IMarket(market).chargeFee(previousLength, chargedLength, paddedLength);
     }
 
-    function _makeContext() internal returns (bool) {
+    function _makeContext() internal whenNotPaused returns (bool) {
         uint nextEpochStart;
         unchecked {
             nextEpochStart = firstBlock + (epoch + 1) * blocksPerEpoch;
