@@ -33,3 +33,17 @@ task("flow:unpause", "unpause contract").setAction(async (_, hre) => {
     await (await flow.unpause()).wait();
     console.log(`done.`);
 });
+
+task("flow:updatecontext", "update context to latest").setAction(async (_, hre) => {
+    const flow = await getTypedContract(hre, CONTRACTS.FixedPriceFlow);
+    for (;;) {
+        const before = await flow.epoch();
+        await (await flow.makeContextFixedTimes(100)).wait();
+        const after = await flow.epoch();
+        if (after === before) {
+            break;
+        }
+        console.log(`updated epoch to ${after}.`);
+    }
+    console.log(`done.`);
+});
