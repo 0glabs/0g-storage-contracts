@@ -27,9 +27,7 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
 
     bytes32 private constant EMPTY_HASH = hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
 
-    IDigestHistory public immutable rootHistory;
-    uint public immutable blocksPerEpoch;
-    uint public immutable firstBlock;
+    uint public immutable deployDelay;
 
     // reserved storage slots for base contract upgrade in future
     uint[50] private __gap;
@@ -48,13 +46,14 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
     EpochRangeWithContextDigest[] private epochRangeHistory;
 
     mapping(uint => bytes32) private rootByTxSeq;
+    uint public firstBlock;
+    IDigestHistory public rootHistory;
+    uint public blocksPerEpoch;
 
     error InvalidSubmission();
 
-    constructor(uint blocksPerEpoch_, uint deployDelay_) {
-        blocksPerEpoch = blocksPerEpoch_;
-        rootHistory = new DigestHistory(ROOT_AVAILABLE_WINDOW);
-        firstBlock = block.number + deployDelay_;
+    constructor(uint deployDelay_) {
+        deployDelay = deployDelay_;
     }
 
     function _initialize(address market_) internal virtual {
@@ -78,8 +77,29 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
         _setupRole(PAUSER_ROLE, msg.sender);
     }
 
-    function initialize(address market_) public virtual onlyInitializeOnce {
+    function initialize(address market_, uint blocksPerEpoch_) public virtual onlyInitializeOnce {
         _initialize(market_);
+        _setParams(blocksPerEpoch_, block.number + deployDelay, address(new DigestHistory(ROOT_AVAILABLE_WINDOW)));
+    }
+
+    function setParams(uint blocksPerEpoch_, uint firstBlock_, address rootHistory_) external {
+        _setParams(blocksPerEpoch_, firstBlock_, rootHistory_);
+    }
+
+    function _setParams(uint blocksPerEpoch_, uint firstBlock_, address rootHistory_) internal {
+        if (blocksPerEpoch == 0) {
+            blocksPerEpoch = blocksPerEpoch_;
+        }
+        if (firstBlock == 0) {
+            firstBlock = firstBlock_;
+        }
+        if (address(rootHistory) == address(0)) {
+            if (rootHistory_ == address(0)) {
+                rootHistory = new DigestHistory(ROOT_AVAILABLE_WINDOW);
+            } else {
+                rootHistory = IDigestHistory(rootHistory_);
+            }
+        }
     }
 
     modifier launched() {
