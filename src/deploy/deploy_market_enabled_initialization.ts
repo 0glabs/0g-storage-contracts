@@ -44,7 +44,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     console.log(`initializing fixed price flow..`);
     if (!(await fixedPriceFlow_.initialized())) {
-        await (await fixedPriceFlow_.initialize(marketAddress)).wait();
+        await (await fixedPriceFlow_.initialize(marketAddress, config.blocksPerEpoch)).wait();
     }
     console.log(`all contract initialized.`);
 };

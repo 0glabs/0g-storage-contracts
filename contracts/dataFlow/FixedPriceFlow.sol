@@ -7,9 +7,9 @@ contract FixedPriceFlow is Flow {
     error NotEnoughFee(uint price, uint amount, uint paid);
 
     // reserved storage slots for base contract upgrade in future
-    uint[49] private __gap;
+    uint[46] private __gap;
 
-    constructor(uint blocksPerEpoch_, uint deployDelay_) Flow(blocksPerEpoch_, deployDelay_) {}
+    constructor(uint deployDelay_) Flow(deployDelay_) {}
 
     function _beforeSubmit(uint sectors) internal override {
         uint price = FixedPrice(market).pricePerSector();
