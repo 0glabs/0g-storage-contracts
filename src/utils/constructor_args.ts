@@ -10,11 +10,11 @@ export function getConstructorArgs(network: string, name: string): unknown[] {
             break;
         }
         case CONTRACTS.FixedPriceFlow.name: {
-            args = [config.blocksPerEpoch, config.flowDeployDelay];
+            args = [config.flowDeployDelay];
             break;
         }
         case CONTRACTS.Flow.name: {
-            args = [config.blocksPerEpoch, config.flowDeployDelay];
+            args = [config.flowDeployDelay];
             break;
         }
         case CONTRACTS.OnePoolReward.name: {

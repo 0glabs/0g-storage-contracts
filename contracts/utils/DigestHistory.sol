@@ -15,7 +15,7 @@ contract DigestHistory is IDigestHistory, Ownable {
         nextIndex = 0;
     }
 
-    function insert(bytes32 data) external returns (uint) {
+    function insert(bytes32 data) external onlyOwner returns (uint) {
         uint index = nextIndex;
         uint slot = nextIndex % digests.length;
         digests[slot] = data;
