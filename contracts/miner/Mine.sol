@@ -57,6 +57,9 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
 
     mapping(bytes32 => address) public beneficiaries;
 
+    // Updated configurable parameters
+    uint public minDifficulty;
+
     event NewMinerId(bytes32 indexed minerId, address indexed beneficiary);
     event UpdateMinerId(bytes32 indexed minerId, address indexed from, address indexed to);
     event NewSubmission(uint indexed epoch, bytes32 indexed minerId, uint epochIndex, uint recallPosition);
@@ -235,6 +238,19 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         }
 
         poraTarget = scaledAdjusted << 16;
+
+        uint maxPoraTarget = _maxPoraTarget();
+        if (poraTarget > maxPoraTarget) {
+            poraTarget = maxPoraTarget;
+        }
+    }
+
+    function _maxPoraTarget() internal view returns (uint) {
+        if (minDifficulty == 0) {
+            return type(uint).max;
+        } else {
+            return type(uint).max / minDifficulty;
+        }
     }
 
     function setTargetMineBlocks(uint targetMineBlocks_) external onlyRole(PARAMS_ADMIN_ROLE) {
@@ -257,6 +273,14 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         require(maxShards_ > 0, "Max shard number cannot be zero");
         require(maxShards_ & (maxShards_ - 1) == 0, "Max shard number must be power of 2");
         maxShards = maxShards_;
+    }
+
+    function setMinDifficulty(uint minDifficulty_) external onlyRole(PARAMS_ADMIN_ROLE) {
+        minDifficulty = minDifficulty_;
+        uint maxPoraTarget = _maxPoraTarget();
+        if (poraTarget > maxPoraTarget) {
+            poraTarget = maxPoraTarget;
+        }
     }
 
     function canSubmit() external returns (bool) {
