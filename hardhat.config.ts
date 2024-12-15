@@ -23,6 +23,7 @@ const userConfig: HttpNetworkUserConfig = {
 import "./src/tasks/access";
 import "./src/tasks/codesize";
 import "./src/tasks/flow";
+import "./src/tasks/mine";
 import "./src/tasks/upgrade";
 
 const config: HardhatUserConfig = {
