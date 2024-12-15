@@ -9,7 +9,7 @@ contract BatteryToken is ERC20, ISafeERC20 {
     mapping(address => uint) public chargedBalance;
 
     constructor(address _uploadToken, string memory name_, string memory symbol_) ERC20(name_, symbol_) {
-        uploadToken = ISafeERC20(_uploadToken);
+        require(_uploadToken.supportsInterface(type(ISafeERC20).interfaceId), "Incompatible token");
     }
 
     function _beforeTokenTransfer(address from, address, uint amount) internal view override {
@@ -34,12 +34,12 @@ contract BatteryToken is ERC20, ISafeERC20 {
 
     function _charge(address from, address to, uint amount) internal {
         uploadToken.transferFrom(from, address(this), amount);
-        chargedBalance[to] += amount;
+        chargedBalance[to] = chargedBalance[to].add(amount);
         require(chargedBalance[to] >= balanceOf(to), "Balance < Charged balance");
     }
 
     function _uncharge(address from, address to, uint amount) internal {
-        require(chargedBalance[from] >= amount, "Not enought charged balance");
+        require(chargedBalance[from] >= amount, "Not enough charged balance");
         unchecked {
             chargedBalance[from] -= amount;
         }
