@@ -28,4 +28,13 @@ contract PoraMineTest is PoraMine {
     ) external pure returns (bytes32) {
         return MineLib.recoverMerkleRoot(answer, unsealedData);
     }
+
+    function testAll(MineLib.PoraAnswer memory answer) external view {
+        bytes32[UNITS_PER_SEAL] memory unsealedData = MineLib.unseal(answer);
+
+        MineLib.recoverMerkleRoot(answer, unsealedData);
+        delete unsealedData;
+
+        pora(answer);
+    }
 }
