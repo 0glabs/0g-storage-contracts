@@ -37,6 +37,8 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
     uint private constant NO_DATA_PROOF = 0x2;
     uint private constant FIXED_DIFFICULTY = 0x4;
 
+    uint64 private constant PORA_VERSION = 0;
+
     // Deferred initializd fields
     address public flow;
     address public reward;
@@ -85,6 +87,10 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         targetSubmissionsNextEpoch = 10;
         difficultyAdjustRatio = 20;
         maxShards = 32;
+    }
+
+    function poraVersion() pure external returns (uint64) {
+        return PORA_VERSION;
     }
 
     function submit(MineLib.PoraAnswer memory answer) public {
