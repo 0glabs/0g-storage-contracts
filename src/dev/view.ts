@@ -3,15 +3,27 @@
 import { Signer } from "ethers";
 import { ethers } from "hardhat";
 import { ChunkLinearReward, FixedPriceFlow, PoraMine } from "../../typechain-types";
-import { TypedEventLog, TypedContractEvent } from "../../typechain-types/common";
+import { TypedContractEvent, TypedEventLog } from "../../typechain-types/common";
 
 import { NewEpochEvent } from "../../typechain-types/contracts/dataFlow/Flow";
-import { DistributeRewardEvent } from "../../typechain-types/contracts/reward/ChunkLinearReward";
 import { NewSubmissionEvent } from "../../typechain-types/contracts/miner/Mine.sol/PoraMine";
+import { DistributeRewardEvent } from "../../typechain-types/contracts/reward/ChunkLinearReward";
 
-type TypedNewEpochEvent = TypedContractEvent<NewEpochEvent.InputTuple, NewEpochEvent.OutputTuple, NewEpochEvent.OutputObject>;
-type TypedDistributeRewardEvent = TypedContractEvent<DistributeRewardEvent.InputTuple, DistributeRewardEvent.OutputTuple, DistributeRewardEvent.OutputObject>;
-type TypedNewSubmissionEvent = TypedContractEvent<NewSubmissionEvent.InputTuple, NewSubmissionEvent.OutputTuple, NewSubmissionEvent.OutputObject>;
+type TypedNewEpochEvent = TypedContractEvent<
+    NewEpochEvent.InputTuple,
+    NewEpochEvent.OutputTuple,
+    NewEpochEvent.OutputObject
+>;
+type TypedDistributeRewardEvent = TypedContractEvent<
+    DistributeRewardEvent.InputTuple,
+    DistributeRewardEvent.OutputTuple,
+    DistributeRewardEvent.OutputObject
+>;
+type TypedNewSubmissionEvent = TypedContractEvent<
+    NewSubmissionEvent.InputTuple,
+    NewSubmissionEvent.OutputTuple,
+    NewSubmissionEvent.OutputObject
+>;
 const u256_max = 1n << 256n;
 
 interface ViewContracts {
@@ -35,12 +47,12 @@ async function getBlockNumber() {
 }
 
 async function printStatus(flow: FixedPriceFlow, mine: PoraMine) {
-    const latestBlock = await ethers.provider.getBlock("latest")
+    const latestBlock = await ethers.provider.getBlock("latest");
     console.log("\n============= Blockchain information =============");
     const currentBlock = latestBlock.number;
     const timestamp = latestBlock.timestamp;
     console.log("current block number: %d", currentBlock);
-    console.log("current time: %s", (new Date(timestamp * 1000)).toString());
+    console.log("current time: %s", new Date(timestamp * 1000).toString());
     // console.log("gas price: %d", gasPrice);
     console.log("gas price: %s ", (await ethers.provider.getFeeData()).gasPrice);
 
@@ -60,20 +72,35 @@ async function printStatus(flow: FixedPriceFlow, mine: PoraMine) {
     console.log("first block: %d", firstBlock);
     console.log("blocks per epoch: %d", blocksPerEpoch);
     console.log("epoch: %d (expected %d)", epoch, context.epoch);
-    console.log("current epoch time: %d / %d", BigInt(currentBlock) - (firstBlock + blocksPerEpoch * epoch), blocksPerEpoch);
+    console.log(
+        "current epoch time: %d / %d",
+        BigInt(currentBlock) - (firstBlock + blocksPerEpoch * epoch),
+        blocksPerEpoch
+    );
     console.log("next epoch start: %d (%d blocks left)", nextEpoch, nextEpoch - BigInt(currentBlock));
 
-    const [poraTarget, currentSubmissions, targetSubmissions, targetSubmissionsNextEpoch, targetMineBlocks, lastMinedEpoch, canSubmit] = await Promise.all([
+    const [
+        poraTarget,
+        currentSubmissions,
+        targetSubmissions,
+        targetSubmissionsNextEpoch,
+        targetMineBlocks,
+        lastMinedEpoch,
+        minimumQuality,
+        canSubmit,
+    ] = await Promise.all([
         mine.poraTarget(),
         mine.currentSubmissions(),
         mine.targetSubmissions(),
         mine.targetSubmissionsNextEpoch(),
         mine.targetMineBlocks(),
         mine.lastMinedEpoch(),
-        mine.canSubmit.staticCall()
-    ])
+        mine.minDifficulty(),
+        mine.canSubmit.staticCall(),
+    ]);
     console.log("\n============= Mine information =============");
-    console.log("target quality", (u256_max / poraTarget));
+    console.log("target quality", u256_max / poraTarget);
+    console.log("minimum quality", minimumQuality);
     console.log("current submissions: %d / %d", currentSubmissions, targetSubmissions);
     console.log("target submissions for next epoch: %d", targetSubmissionsNextEpoch);
     console.log("target mine blocks: %d", targetMineBlocks);
@@ -94,9 +121,9 @@ async function printStatus(flow: FixedPriceFlow, mine: PoraMine) {
 }
 
 async function queryEvents<TCEvent extends TypedContractEvent>(
-    blocks: number, 
-    contract: BaseContract, 
-    filter: TypedDeferredTopicFilter<TCEvent>, 
+    blocks: number,
+    contract: BaseContract,
+    filter: TypedDeferredTopicFilter<TCEvent>,
     callback: (eventLog: TypedEventLog<TCEvent>) => Promise<void>
 ) {
     const GET_LOGS_RANGE = 1000;
@@ -114,7 +141,6 @@ async function queryEvents<TCEvent extends TypedContractEvent>(
         i -= GET_LOGS_RANGE;
     }
 }
-
 
 async function printContext(flow: FixedPriceFlow, blocks: number = 1000) {
     console.log("====== New Epoch Events (last %d blocks) ======", blocks);
@@ -150,17 +176,33 @@ async function printContext(flow: FixedPriceFlow, blocks: number = 1000) {
 
 async function printReward(reward: ChunkLinearReward, blocks: number = 1000) {
     console.log("====== Reward Distribution Events (last %d blocks) ======", blocks);
-    await queryEvents<TypedDistributeRewardEvent>(blocks, reward, reward.filters.DistributeReward(), async function (event) {
-        const [tx, receipt] = await Promise.all([event.getTransaction(), event.getTransactionReceipt()]);
-        console.log("Reward distributed at block %d\tGas: %d (%d)\ttx hash: %s", event.blockNumber, receipt.gasUsed, tx.gasLimit, event.transactionHash);
-    });
+    await queryEvents<TypedDistributeRewardEvent>(
+        blocks,
+        reward,
+        reward.filters.DistributeReward(),
+        async function (event) {
+            const [tx, receipt] = await Promise.all([event.getTransaction(), event.getTransactionReceipt()]);
+            console.log(
+                "Reward distributed at block %d\tGas: %d (%d)\ttx hash: %s",
+                event.blockNumber,
+                receipt.gasUsed,
+                tx.gasLimit,
+                event.transactionHash
+            );
+        }
+    );
     console.log("<<<<<<<< Done <<<<<<<<<<\n");
 }
 
 async function printMineSubmissions(mine: PoraMine, blocks: number = 1000) {
     console.log("====== Mine Submission Events (last %d blocks) ======", blocks);
     await queryEvents<TypedNewSubmissionEvent>(blocks, mine, mine.filters.NewSubmission(), async function (event) {
-        console.log("Mine submission, epoch: %d\tindex: %d,\ttx hash: %s", event.args.epoch, event.args.epochIndex, event.transactionHash)
+        console.log(
+            "Mine submission, epoch: %d\tindex: %d,\ttx hash: %s",
+            event.args.epoch,
+            event.args.epochIndex,
+            event.transactionHash
+        );
     });
     console.log("<<<<<<<< Done <<<<<<<<<<\n");
 }
@@ -175,7 +217,7 @@ async function main() {
     const [owner, me, me2] = await ethers.getSigners();
 
     const { mine, flow, reward } = await contracts(me2);
-    await printStatus(flow, mine)
+    await printStatus(flow, mine);
     await printContext(flow);
     await printReward(reward);
     await printMineSubmissions(mine);

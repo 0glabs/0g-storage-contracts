@@ -1,27 +1,30 @@
+import { MockContract } from "@clrfund/waffle-mock-contract";
 import { assert, expect } from "chai";
+import { AbiCoder } from "ethers";
 import { ethers } from "hardhat";
 import { blake2b, keccak } from "hash-wasm";
-import { deployMock } from "./utils/deploy";
-import env = require("hardhat");
+import { IDataType } from "hash-wasm/dist/lib/util";
 
-import { MockContract } from "@clrfund/waffle-mock-contract";
-import { AbiCoder, keccak256 } from "ethers";
 import { PoraMineTest } from "../typechain-types";
+
+import { bufferToBigInt, hexToBuffer, numToU256 } from "./utils/converts";
+import { deployMock } from "./utils/deploy";
 import { genLeaves, MockMerkle } from "./utils/mockMerkleTree";
+import {
+    BHASHES_PER_PAD,
+    BHASHES_PER_SEAL,
+    SEALS_PER_PAD,
+    SECTORS_PER_LOAD,
+    SECTORS_PER_SEAL,
+    UNITS_PER_SEAL,
+} from "./utils/params";
 import { Snapshot } from "./utils/snapshot";
 
+async function keccak256(input: IDataType): Promise<Buffer> {
+    return hexToBuffer(await keccak(input, 256));
+}
+
 const abiCoder = new AbiCoder();
-
-function hexToBuffer(hex: string): Buffer {
-    if (hex.slice(0, 2) === "0x") {
-        hex = hex.slice(2);
-    }
-    return Buffer.from(hex, "hex");
-}
-
-function numToU256(num: number): Buffer {
-    return hexToBuffer(abiCoder.encode(["uint256"], [num]));
-}
 
 type RecallRangeStruct = {
     startPosition: number;
@@ -73,7 +76,7 @@ describe("Miner", function () {
         await mineContract.initialize(1, await mockFlow.getAddress(), await mockReward.getAddress());
         await mineContract.setDifficultyAdjustRatio(1);
 
-        minerId = hexToBuffer(await keccak("minerId", 256));
+        minerId = await keccak256("minerId");
         await mineContract.setMiner(minerId);
 
         snapshot = await new Snapshot().snapshot();
@@ -96,7 +99,7 @@ describe("Miner", function () {
         shardMask?: bigint;
         shardId?: bigint;
     }) {
-        const nonce = hexToBuffer(await keccak(nonceSeed?.toString() || "nonce", 256));
+        const nonce = await keccak256(nonceSeed?.toString() || "nonce");
 
         const sealOffset = 11;
 
@@ -108,8 +111,8 @@ describe("Miner", function () {
             shardId: shardId || BigInt(0),
         };
 
-        const recallDigest = hexToBuffer(
-            keccak256(
+        const recallDigest = await keccak256(
+            hexToBuffer(
                 abiCoder.encode(
                     ["uint256", "uint256", "uint256", "uint256"],
                     [range.startPosition, range.mineLength, range.shardId, range.shardMask]
@@ -125,10 +128,10 @@ describe("Miner", function () {
             tree.length()
         );
         const realChunkOffset = (BigInt(chunkOffset) & range.shardMask) | range.shardId;
-        const recallPosition = Number(realChunkOffset) * 1024 + sealOffset * 16;
+        const recallPosition = Number(realChunkOffset) * SECTORS_PER_LOAD + sealOffset * SECTORS_PER_SEAL;
         const unsealedData = await tree.getUnsealedData(recallPosition);
 
-        const sealedContextDigest = hexToBuffer(await keccak("44", 256));
+        const sealedContextDigest = await keccak256("44");
         const sealedData = await seal(minerId, sealedContextDigest, unsealedData, recallPosition);
 
         const answer: PoraAnswerStruct = {
@@ -158,6 +161,18 @@ describe("Miner", function () {
 
         return { context, answer, tree, scratchPad, unsealedData, quality };
     }
+
+    it.skip("inspect gas cost (dev)", async () => {
+        const { answer, unsealedData } = await makeTestData({});
+
+        console.log("all: \t\t\t%d", await mineContract.testAll.estimateGas(answer));
+
+        console.log("unseal: \t\t%d", await mineContract.unseal.estimateGas(answer));
+
+        console.log("recover merkle: \t%d", await mineContract.recoverMerkleRoot.estimateGas(answer, unsealedData));
+
+        console.log("pora: \t\t\t%d", await mineContract.pora.estimateGas(answer));
+    });
 
     it("check valid submission", async () => {
         const { context, answer, tree, unsealedData, quality } = await makeTestData({});
@@ -376,7 +391,7 @@ async function seal(
     let maskInput = Buffer.concat([minerId, contextDigest, numToU256(startPosition)]);
     const sealedData = Array(128);
     for (let i = 0; i < 128; i++) {
-        sealedData[i] = xor(unsealedData[i], hexToBuffer(await keccak(maskInput, 256)));
+        sealedData[i] = xor(unsealedData[i], await keccak256(maskInput));
         maskInput = sealedData[i];
     }
     return sealedData;
@@ -391,7 +406,7 @@ async function makeContextDigest(
     const KeccakEmpty: Buffer = hexToBuffer("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 
     if (blockDigest === undefined) {
-        blockDigest = hexToBuffer(await keccak("blockDigest", 256));
+        blockDigest = await keccak256("blockDigest");
     }
 
     if (epoch === undefined) {
@@ -412,17 +427,30 @@ async function makeContextDigest(
         digest: KeccakEmpty,
     };
 
-    const contextDigest = hexToBuffer(
-        await keccak(
+    const contextDigest = await keccak256(
+        hexToBuffer(
             abiCoder.encode(
                 ["bytes32", "bytes32", "uint256"],
                 [context.blockDigest, context.flowRoot, context.flowLength]
-            ),
-            256
+            )
         )
     );
     context.digest = contextDigest;
     return context;
+}
+
+async function scratchPadItemHash(input: Buffer): Promise<Buffer> {
+    return hexToBuffer(await blake2b(input));
+}
+
+async function scratchPadItemHashV2(input: Buffer): Promise<Buffer> {
+    const firstHash = await keccak256(input);
+
+    const secondInput = Buffer.concat([firstHash, input.subarray(32)]);
+
+    const secondHash = await keccak256(secondInput);
+
+    return Buffer.concat([firstHash, secondHash]);
 }
 
 async function makeScratchPad(
@@ -432,35 +460,35 @@ async function makeScratchPad(
     recallDigest: Buffer,
     length: number
 ): Promise<{ scratchPad: Buffer[]; chunkOffset: number; padSeed: Buffer }> {
-    const answer = Array(1024);
-
+    const answer = Array(BHASHES_PER_PAD);
     let input = hexToBuffer(await blake2b(Buffer.concat([minerId, nonce, contextDigest, recallDigest])));
 
     const padSeed = input;
 
-    for (let i = 0; i < 1024; i++) {
-        answer[i] = hexToBuffer(await blake2b(input));
+    for (let i = 0; i < BHASHES_PER_PAD; i++) {
+        answer[i] = await scratchPadItemHash(input);
         input = answer[i];
     }
 
-    const chunks = Math.floor(length / 1024);
+    const chunks = Math.floor(length / SECTORS_PER_LOAD);
 
-    const chunkOffset = Number(BigInt("0x" + (await keccak(answer[answer.length - 1], 256))) % BigInt(chunks));
+    const chunkOffset = Number(bufferToBigInt(await keccak256(answer[answer.length - 1])) % BigInt(chunks));
     const scratchPad = answer;
 
     return { scratchPad, chunkOffset, padSeed };
 }
 
 function mixData(sealedData: Buffer[], scratchPad: Buffer[], sealOffset: number): Buffer[] {
-    return Array(128)
+    return Array(UNITS_PER_SEAL)
         .fill(0)
         .map(function (_, i) {
-            const scratchPadOffset = (sealOffset % 16) * 64;
+            const scratchPadOffset = (sealOffset % SEALS_PER_PAD) * BHASHES_PER_SEAL;
+            const padItem = scratchPad[scratchPadOffset + (i >> 1)];
             let mask;
             if (i % 2 === 0) {
-                mask = scratchPad[scratchPadOffset + (i >> 1)].slice(0, 32);
+                mask = padItem.subarray(0, 32);
             } else {
-                mask = scratchPad[scratchPadOffset + (i >> 1)].slice(32, 64);
+                mask = padItem.subarray(32, 64);
             }
             assert(sealedData[i] !== undefined);
             assert(mask !== undefined);

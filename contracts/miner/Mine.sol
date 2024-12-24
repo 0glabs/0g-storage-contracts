@@ -89,7 +89,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         maxShards = 32;
     }
 
-    function poraVersion() pure external returns (uint64) {
+    function poraVersion() external pure returns (uint64) {
         return PORA_VERSION;
     }
 
