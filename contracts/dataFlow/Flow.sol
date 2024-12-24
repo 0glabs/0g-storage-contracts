@@ -185,7 +185,7 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
         }
         tree.commitRoot();
         bytes32 currentRoot = tree.root();
-        uint index = rootHistory.insert(currentRoot);
+        rootHistory.insert(currentRoot);
         // assert(index == epoch);
 
         bytes32 contextDigest;
