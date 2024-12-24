@@ -3257,10 +3257,10 @@ hardhat-deploy-ethers@^0.4.1:
   resolved "https://registry.yarnpkg.com/hardhat-deploy-ethers/-/hardhat-deploy-ethers-0.4.2.tgz#10aa44ef806ec8cf3d67ad9692f3762ed965b5e7"
   integrity sha512-AskNH/XRYYYqPT94MvO5s1yMi+/QvoNjS4oU5VcVqfDU99kgpGETl+uIYHIrSXtH5sy7J6gyVjpRMf4x0tjLSQ==
 
-hardhat-deploy@^0.12.2:
-  version "0.12.4"
-  resolved "https://registry.yarnpkg.com/hardhat-deploy/-/hardhat-deploy-0.12.4.tgz#5ebef37f1004f52a74987213b0465ad7c9433fb2"
-  integrity sha512-bYO8DIyeGxZWlhnMoCBon9HNZb6ji0jQn7ngP1t5UmGhC8rQYhji7B73qETMOFhzt5ECZPr+U52duj3nubsqdQ==
+hardhat-deploy@^0.14:
+  version "0.14.0"
+  resolved "https://registry.yarnpkg.com/hardhat-deploy/-/hardhat-deploy-0.14.0.tgz#4897bd50c93b3a9ce135728f84fd4a1736469f6b"
+  integrity sha512-jZm0bJGHeH7dEyCzz69hsS8HlNNLJLjXDQVlStczulf54vYJUfRvZ+t3x20QsdXQoXUe6Qujlp8cKbx6JjFpZw==
   dependencies:
     "@ethersproject/abi" "^5.7.0"
     "@ethersproject/abstract-signer" "^5.7.0"
