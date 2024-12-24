@@ -466,7 +466,7 @@ async function makeScratchPad(
     const padSeed = input;
 
     for (let i = 0; i < BHASHES_PER_PAD; i++) {
-        answer[i] = await scratchPadItemHash(input);
+        answer[i] = await scratchPadItemHashV2(input);
         input = answer[i];
     }
 
