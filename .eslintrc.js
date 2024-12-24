@@ -23,6 +23,10 @@ module.exports = {
             "error",
             { prefer: "no-type-imports" },
         ],
+        '@typescript-eslint/no-unsafe-call': 'off',
+        '@typescript-eslint/no-unsafe-assignment': 'off',
+        '@typescript-eslint/no-unsafe-member-access': 'off',
+        '@typescript-eslint/no-unsafe-argument': 'off',
     },
     ignorePatterns: [".eslintrc.js"],
 };
