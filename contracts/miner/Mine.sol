@@ -37,7 +37,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
     uint private constant NO_DATA_PROOF = 0x2;
     uint private constant FIXED_DIFFICULTY = 0x4;
 
-    uint64 private constant PORA_VERSION = 0;
+    uint64 private constant PORA_VERSION = 1;
 
     // Deferred initializd fields
     address public flow;
