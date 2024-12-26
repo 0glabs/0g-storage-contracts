@@ -16,6 +16,7 @@ import "../interfaces/IDigestHistory.sol";
 
 import "./RecallRange.sol";
 import "./MineLib.sol";
+import "./WorkerContext.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -313,17 +314,28 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         return context.epoch > lastMinedEpoch || currentSubmissions < targetSubmissions * 2;
     }
 
-    function computePoraTarget() external returns (uint) {
-        MineContext memory context = IFlow(flow).makeContextWithResult();
-        if (context.epoch > lastMinedEpoch) {
-            _updateMineEpochWhenNeeded(context);
-            return poraTarget;
-        } else {
-            if (currentSubmissions < targetSubmissions * 2) {
-                return poraTarget;
-            } else {
-                return 0;
-            }
+    function computeWorkerContext(bytes32 minerId) external returns (WorkerContext memory answer) {
+        require(minerId != bytes32(0), "MinerId cannot be zero");
+        address beneficiary = beneficiaries[minerId];
+        require(beneficiary != address(0), "MinerId does not registered");
+
+        answer.maxShards = maxShards;
+        answer.context = IFlow(flow).makeContextWithResult();
+
+        uint subtaskIdx = uint(keccak256(abi.encode(answer.context.digest, minerId))) % nSubtasks;
+        uint subtaskMineStart = answer.context.mineStart + subtaskIdx;
+        if (block.number <= subtaskMineStart || block.number - subtaskMineStart > targetMineBlocks) {
+            return answer;
+        }
+        
+        answer.subtaskDigest = keccak256(abi.encode(answer.context.digest, blockhash(subtaskMineStart)));
+
+        if (answer.context.epoch > lastMinedEpoch) {
+            _updateMineEpochWhenNeeded(answer.context);
+        }
+        
+        if (currentSubmissions < targetSubmissions * 2) {
+            answer.poraTarget = poraTarget;
         }
     }
 }
