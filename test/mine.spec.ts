@@ -1,7 +1,7 @@
 import { MockContract } from "@clrfund/waffle-mock-contract";
 import { assert, expect } from "chai";
 import { AbiCoder } from "ethers";
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { blake2b, keccak } from "hash-wasm";
 import { IDataType } from "hash-wasm/dist/lib/util";
 
@@ -92,12 +92,14 @@ describe("Miner", function () {
         nonceSeed,
         shardMask,
         shardId,
+        subtaskBlockDigest,
     }: {
         length?: number;
         flow?: MockMerkle;
         nonceSeed?: number;
         shardMask?: bigint;
         shardId?: bigint;
+        subtaskBlockDigest?: Buffer,
     }) {
         const nonce = await keccak256(nonceSeed?.toString() || "nonce");
 
@@ -120,10 +122,11 @@ describe("Miner", function () {
             )
         );
         const context: MineContextStruct = await makeContextDigest(tree);
+        const subtaskDigest: Buffer = await keccak256(Buffer.concat([context.digest, subtaskBlockDigest || context.blockDigest]));
         const { scratchPad, chunkOffset, padSeed } = await makeScratchPad(
             minerId,
             nonce,
-            context.digest,
+            subtaskDigest,
             recallDigest,
             tree.length()
         );
@@ -159,29 +162,29 @@ describe("Miner", function () {
             )
         ).slice(0, 64);
 
-        return { context, answer, tree, scratchPad, unsealedData, quality };
+        return { context, answer, tree, scratchPad, unsealedData, quality, subtaskDigest };
     }
 
     it.skip("inspect gas cost (dev)", async () => {
-        const { answer, unsealedData } = await makeTestData({});
+        const { answer, unsealedData, context } = await makeTestData({});
 
-        console.log("all: \t\t\t%d", await mineContract.testAll.estimateGas(answer));
+        console.log("all: \t\t\t%d", await mineContract.testAll.estimateGas(answer, context.digest));
 
         console.log("unseal: \t\t%d", await mineContract.unseal.estimateGas(answer));
 
         console.log("recover merkle: \t%d", await mineContract.recoverMerkleRoot.estimateGas(answer, unsealedData));
 
-        console.log("pora: \t\t\t%d", await mineContract.pora.estimateGas(answer));
+        console.log("pora: \t\t\t%d", await mineContract.pora.estimateGas(answer, context.digest));
     });
 
     it("check valid submission", async () => {
-        const { context, answer, tree, unsealedData, quality } = await makeTestData({});
+        const { context, answer, tree, unsealedData, quality, subtaskDigest } = await makeTestData({});
 
         expect(await mineContract.unseal(answer)).to.deep.equal(unsealedData.map((x) => "0x" + x.toString("hex")));
 
         expect(hexToBuffer(await mineContract.recoverMerkleRoot(answer, unsealedData))).to.deep.equal(tree.root());
 
-        expect(hexToBuffer(await mineContract.pora(answer))).to.deep.equal(hexToBuffer(quality.slice(0, 64)));
+        expect(hexToBuffer(await mineContract.pora(answer, subtaskDigest))).to.deep.equal(hexToBuffer(quality.slice(0, 64)));
 
         await mockFlow.mock.getEpochRange
             .withArgs(answer.sealedContextDigest)
@@ -195,7 +198,7 @@ describe("Miner", function () {
     it("sharded info test", async () => {
         const flow = await new MockMerkle(await genLeaves(16384 - 1)).build();
         for (let i = 0; i < 32; i++) {
-            const { context, answer, tree, unsealedData, quality } = await makeTestData({
+            const { context, answer, tree, unsealedData, quality, subtaskDigest } = await makeTestData({
                 shardMask: BigInt(2) ** BigInt(64) - BigInt(8),
                 shardId: BigInt(3),
                 nonceSeed: i,
@@ -210,7 +213,7 @@ describe("Miner", function () {
 
             expect(hexToBuffer(await mineContract.recoverMerkleRoot(answer, unsealedData))).to.deep.equal(tree.root());
 
-            expect(hexToBuffer(await mineContract.pora(answer))).to.deep.equal(hexToBuffer(quality.slice(0, 64)));
+            expect(hexToBuffer(await mineContract.pora(answer, subtaskDigest))).to.deep.equal(hexToBuffer(quality.slice(0, 64)));
 
             await mockFlow.mock.getEpochRange
                 .withArgs(answer.sealedContextDigest)
@@ -237,12 +240,12 @@ describe("Miner", function () {
     });
 
     it("out of bound sharded info test", async () => {
-        const { answer } = await makeTestData({
+        const { answer, subtaskDigest } = await makeTestData({
             shardMask: BigInt(2) ** BigInt(64) - BigInt(8),
             shardId: BigInt(7),
             length: 1024 * 5,
         });
-        await expect(mineContract.pora(answer)).to.be.revertedWith("Recall position out of bound");
+        await expect(mineContract.pora(answer, subtaskDigest)).to.be.revertedWith("Recall position out of bound");
     });
 
     it("check valid/invalid epoch range", async () => {
@@ -401,22 +404,19 @@ async function makeContextDigest(
     tree: MockMerkle,
     epoch?: number,
     mineStart?: number,
-    blockDigest?: Buffer
 ): Promise<MineContextStruct> {
     const KeccakEmpty: Buffer = hexToBuffer("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
-
-    if (blockDigest === undefined) {
-        blockDigest = await keccak256("blockDigest");
-    }
 
     if (epoch === undefined) {
         epoch = 1;
     }
 
     if (mineStart === undefined) {
-        // not used now
-        mineStart = 12;
+        mineStart = await ethers.provider.getBlockNumber();
     }
+
+    const startBlock = (await ethers.provider.getBlock(mineStart)) !;
+    const blockDigest = hexToBuffer(startBlock.hash !);
 
     const context: MineContextStruct = {
         epoch,
@@ -456,12 +456,12 @@ async function scratchPadItemHashV2(input: Buffer): Promise<Buffer> {
 async function makeScratchPad(
     minerId: Buffer,
     nonce: Buffer,
-    contextDigest: Buffer,
+    subtaskDigest: Buffer,
     recallDigest: Buffer,
     length: number
 ): Promise<{ scratchPad: Buffer[]; chunkOffset: number; padSeed: Buffer }> {
     const answer = Array(BHASHES_PER_PAD);
-    let input = hexToBuffer(await blake2b(Buffer.concat([minerId, nonce, contextDigest, recallDigest])));
+    let input = hexToBuffer(await blake2b(Buffer.concat([minerId, nonce, subtaskDigest, recallDigest])));
 
     const padSeed = input;
 
