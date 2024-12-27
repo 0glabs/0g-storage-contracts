@@ -10,7 +10,7 @@ uint constant MAX_MINING_LENGTH = (8 * TB) / BYTES_PER_SECTOR;
 
 uint constant BYTES_PER_SECTOR = 256;
 uint constant BYTES_PER_SEAL = 4 * KB;
-uint constant BYTES_PER_PAD = 64 * KB;
+uint constant BYTES_PER_PAD = 16 * KB;
 uint constant BYTES_PER_LOAD = 256 * KB;
 uint constant BYTES_PER_PRICE = 8 * GB;
 uint constant BYTES_PER_SEGMENT = 256 * KB;

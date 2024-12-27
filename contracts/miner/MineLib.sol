@@ -21,31 +21,24 @@ library MineLib {
         bytes32[] merkleProof;
     }
 
-    function scratchPadHash(bytes32[2] memory padDigest, uint rounds) internal view {
-        bytes32[8] memory slots;
-        slots[1] = Blake2b.BLAKE2B_INIT_STATE0;
-        slots[2] = Blake2b.BLAKE2B_INIT_STATE1;
-        slots[3] = padDigest[0];
-        slots[4] = padDigest[1];
+    function scratchPadHash(bytes32[2] memory padDigest, uint rounds) internal pure {
         assembly {
-            let argPtr := add(slots, 0x1c)
-            let mPtr := add(slots, 0x60)
-            mstore8(add(slots, 0x1f), 12) // round = 12
-            mstore8(add(slots, 0xe0), 64) // offset = 64
-            mstore8(add(slots, 0xf0), 1) // finalized = true
-
             for {
                 let i := 0
             } lt(i, rounds) {
                 i := add(i, 1)
             } {
-                if iszero(staticcall(not(0), 0x09, argPtr, 0xd5, mPtr, 0x40)) {
-                    revert(0, 0)
-                }
+                mstore(padDigest, keccak256(padDigest, 0x40))
+                mstore(add(padDigest, 0x20), keccak256(padDigest, 0x40))
             }
         }
-        padDigest[0] = slots[3];
-        padDigest[1] = slots[4];
+    }
+
+    function scratchPadHashOnce(bytes32[2] memory padDigest) internal pure {
+        assembly {
+            mstore(padDigest, keccak256(padDigest, 0x40))
+            mstore(add(padDigest, 0x20), keccak256(padDigest, 0x40))
+        }
     }
 
     function computeScratchPadAndMix(
@@ -58,7 +51,8 @@ library MineLib {
         scratchPadHash(currentDigest, skipSeals * BHASHES_PER_SEAL);
         unchecked {
             for (uint i = 0; i < UNITS_PER_SEAL; i += 2) {
-                scratchPadHash(currentDigest, 1);
+                scratchPadHashOnce(currentDigest);
+
                 mixedData[i] = currentDigest[0] ^ sealedData[i];
                 mixedData[i + 1] = currentDigest[1] ^ sealedData[i + 1];
             }
