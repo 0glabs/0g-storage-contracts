@@ -16,6 +16,7 @@ import "../interfaces/IDigestHistory.sol";
 
 import "./RecallRange.sol";
 import "./MineLib.sol";
+import "./WorkerContext.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -37,7 +38,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
     uint private constant NO_DATA_PROOF = 0x2;
     uint private constant FIXED_DIFFICULTY = 0x4;
 
-    uint64 private constant PORA_VERSION = 0;
+    uint64 private constant PORA_VERSION = 1;
 
     // Deferred initializd fields
     address public flow;
@@ -61,6 +62,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
 
     // Updated configurable parameters
     uint public minDifficulty;
+    uint public nSubtasks;
 
     event NewMinerId(bytes32 indexed minerId, address indexed beneficiary);
     event UpdateMinerId(bytes32 indexed minerId, address indexed from, address indexed to);
@@ -87,6 +89,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         targetSubmissionsNextEpoch = 10;
         difficultyAdjustRatio = 20;
         maxShards = 32;
+        nSubtasks = 1;
     }
 
     function poraVersion() external pure returns (uint64) {
@@ -101,15 +104,8 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
 
         // Step 2: maintain context
         MineContext memory context = IFlow(flow).makeContextWithResult();
-        require(context.epoch >= lastMinedEpoch, "Internal error: epoch number decrease");
-        if (context.epoch > lastMinedEpoch && lastMinedEpoch > 0) {
-            if (currentSubmissions < targetSubmissions) {
-                // Not enough submissions in the last epoch
-                _adjustDifficultyOnIncompleteEpoch();
-            }
-            currentSubmissions = 0;
-            targetSubmissions = targetSubmissionsNextEpoch;
-        }
+        _updateMineEpochWhenNeeded(context);
+        bytes32 subtaskDigest = getSubtaskDigest(context, answer.minerId);
 
         // Step 3: basic check for submission
         basicCheck(answer, context);
@@ -129,7 +125,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         delete unsealedData;
 
         // Step 5: compute PoRA hash
-        bytes32 poraOutput = pora(answer);
+        bytes32 poraOutput = pora(answer, subtaskDigest);
         uint scaleX64 = answer.range.targetScaleX64(context.flowLength);
         // scaleX64 >= 2^64, so there is no overflow
         require(uint(poraOutput) <= (poraTarget / scaleX64) << 64, "Do not reach target quality");
@@ -147,21 +143,13 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         emit NewSubmission(context.epoch, answer.minerId, currentSubmissions, answer.recallPosition);
         lastMinedEpoch = context.epoch;
         currentSubmissions += 1;
-        if (currentSubmissions < targetSubmissions) {
-            return;
-        }
-
-        // Step 8: adjust quality
-        if (!fixedDifficulty) {
-            _adjustDifficulty(context);
-        }
     }
 
     function basicCheck(MineLib.PoraAnswer memory answer, MineContext memory context) public view {
         // Check basic field
         require(context.digest == answer.contextDigest, "Inconsistent mining digest");
         require(context.digest != EMPTY_HASH, "Empty digest can not mine");
-        require(currentSubmissions < targetSubmissions, "Epoch has enough submissions");
+        require(currentSubmissions < 2 * targetSubmissions, "Epoch has enough submissions");
 
         // Check validity of recall range
         uint maxLength = (context.flowLength / SECTORS_PER_LOAD) * SECTORS_PER_LOAD;
@@ -176,10 +164,10 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         );
     }
 
-    function pora(MineLib.PoraAnswer memory answer) public view returns (bytes32) {
+    function pora(MineLib.PoraAnswer memory answer, bytes32 subtaskDigest) public view returns (bytes32) {
         require(answer.minerId != bytes32(0x0), "Miner ID cannot be empty");
 
-        bytes32[4] memory seedInput = [answer.minerId, answer.nonce, answer.contextDigest, answer.range.digest()];
+        bytes32[4] memory seedInput = [answer.minerId, answer.nonce, subtaskDigest, answer.range.digest()];
 
         bytes32[2] memory padSeed = Blake2b.blake2b(seedInput);
 
@@ -197,6 +185,25 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         return MineLib.computePoraHash(answer.sealOffset, padSeed, mixedData);
     }
 
+    function _updateMineEpochWhenNeeded(MineContext memory context) internal {
+        require(context.epoch >= lastMinedEpoch, "Internal error: epoch number decrease");
+
+        if (context.epoch > lastMinedEpoch && lastMinedEpoch > 0) {
+            _adjustDifficultyOnNewEpoch();
+            currentSubmissions = 0;
+            targetSubmissions = targetSubmissionsNextEpoch;
+        }
+    }
+
+    function getSubtaskDigest(MineContext memory context, bytes32 minerId) public view returns (bytes32) {
+        uint subtaskIdx = uint(keccak256(abi.encode(context.digest, minerId))) % nSubtasks;
+        uint subtaskMineStart = context.mineStart + subtaskIdx;
+        require(block.number > subtaskMineStart, "Earlier than expected subtask start block.");
+        require(block.number - subtaskMineStart <= targetMineBlocks, "Mine deadline exceed");
+
+        return keccak256(abi.encode(context.digest, blockhash(subtaskMineStart)));
+    }
+
     function requestMinerId(address beneficiary, uint64 seed) public {
         bytes32 minerId = keccak256(abi.encodePacked(blockhash(block.number - 1), msg.sender, seed));
         require(beneficiaries[minerId] == address(0), "MinerId has registered");
@@ -210,21 +217,27 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         emit UpdateMinerId(minerId, msg.sender, to);
     }
 
-    function _adjustDifficulty(MineContext memory context) internal {
-        uint miningBlocks = block.number - context.mineStart;
-
+    function _adjustDifficultyOnNewEpoch() internal {
         // Remove least significant 16 bits to avoid overflow
-        uint scaledTarget = poraTarget >> 16;
-        uint scaledExpected = Math.mulDiv(scaledTarget, miningBlocks, targetMineBlocks);
+        uint scaledExpected;
+        if (currentSubmissions > 0) {
+            uint scaledTarget = poraTarget >> 16;
+            scaledExpected = Math.mulDiv(scaledTarget, targetMineBlocks, currentSubmissions);
+        } else {
+            scaledExpected = type(uint).max >> 16;    
+        }
 
         _adjustDifficultyInner(scaledExpected);
     }
 
-    function _adjustDifficultyOnIncompleteEpoch() internal {
+    function _adjustDifficultyOnSkippedEpoch() internal {
         _adjustDifficultyInner(type(uint).max >> 16);
     }
 
     function _adjustDifficultyInner(uint scaledExpected) internal {
+        if(fixedDifficulty) {
+            return;
+        }
         uint scaledTarget = poraTarget >> 16;
 
         uint n = difficultyAdjustRatio;
@@ -260,6 +273,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
     }
 
     function setTargetMineBlocks(uint targetMineBlocks_) external onlyRole(PARAMS_ADMIN_ROLE) {
+        require(targetMineBlocks_ <= 256, "target mine block must <= 256");
         targetMineBlocks = targetMineBlocks_;
     }
 
@@ -289,8 +303,39 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         }
     }
 
+    function setNumSubtasks(uint nSubtasks_) external onlyRole(PARAMS_ADMIN_ROLE) {
+        require(nSubtasks_ > 0, "Number of subtasks cannot be zero");
+        require(nSubtasks_ < IFlow(flow).blocksPerEpoch(), "Number of subtasks must be less than blocks per epoch");
+        nSubtasks = nSubtasks_;
+    }
+
     function canSubmit() external returns (bool) {
         MineContext memory context = IFlow(flow).makeContextWithResult();
-        return context.epoch > lastMinedEpoch || currentSubmissions < targetSubmissions;
+        return context.epoch > lastMinedEpoch || currentSubmissions < targetSubmissions * 2;
+    }
+
+    function computeWorkerContext(bytes32 minerId) external returns (WorkerContext memory answer) {
+        require(minerId != bytes32(0), "MinerId cannot be zero");
+        address beneficiary = beneficiaries[minerId];
+        require(beneficiary != address(0), "MinerId does not registered");
+
+        answer.maxShards = maxShards;
+        answer.context = IFlow(flow).makeContextWithResult();
+
+        uint subtaskIdx = uint(keccak256(abi.encode(answer.context.digest, minerId))) % nSubtasks;
+        uint subtaskMineStart = answer.context.mineStart + subtaskIdx;
+        if (block.number <= subtaskMineStart || block.number - subtaskMineStart > targetMineBlocks) {
+            return answer;
+        }
+        
+        answer.subtaskDigest = keccak256(abi.encode(answer.context.digest, blockhash(subtaskMineStart)));
+
+        if (answer.context.epoch > lastMinedEpoch) {
+            _updateMineEpochWhenNeeded(answer.context);
+        }
+        
+        if (currentSubmissions < targetSubmissions * 2) {
+            answer.poraTarget = poraTarget;
+        }
     }
 }

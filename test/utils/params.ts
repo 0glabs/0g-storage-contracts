@@ -1,6 +1,6 @@
 const BYTES_PER_SECTOR = 256;
 const BYTES_PER_SEAL = 4 * 1024; // 4 KB
-const BYTES_PER_PAD = 64 * 1024; // 64 KB
+const BYTES_PER_PAD = 16 * 1024; // 16 KB
 const BYTES_PER_LOAD = 256 * 1024; // 256 KB
 const BYTES_PER_PRICE = 8 * 1024 * 1024 * 1024; // 8 GB
 const BYTES_PER_SEGMENT = 256 * 1024; // 256 KB
