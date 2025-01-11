@@ -119,7 +119,7 @@ contract OnePoolReward is IReward, Context, ZgInitializable {
         }
     }
 
-    function claimMineReward(uint pricingIndex, address payable beneficiary, bytes32) external {
+    function claimMineReward(uint pricingIndex, address payable beneficiary, bytes32 minerID) external {
         require(_msgSender() == mine, "Sender does not have permission");
 
         if (pricingIndex < firstValidChunk) {
@@ -136,7 +136,7 @@ contract OnePoolReward is IReward, Context, ZgInitializable {
 
         if (claimable > 0) {
             beneficiary.transfer(claimable);
-            emit DistributeReward(pricingIndex, beneficiary, claimable);
+            emit DistributeReward(pricingIndex, beneficiary, minerID, claimable);
         }
     }
 

@@ -45,7 +45,7 @@ library MineLib {
         bytes32[UNITS_PER_SEAL] memory sealedData,
         uint skipSeals,
         bytes32[2] memory padDigest
-    ) internal view returns (bytes32[2] memory recallSeed, bytes32[UNITS_PER_SEAL] memory mixedData) {
+    ) internal pure returns (bytes32[2] memory recallSeed, bytes32[UNITS_PER_SEAL] memory mixedData) {
         bytes32[2] memory currentDigest = padDigest.deepCopy();
 
         scratchPadHash(currentDigest, skipSeals * BHASHES_PER_SEAL);
@@ -81,6 +81,7 @@ library MineLib {
         bytes32[8] memory slots;
         uint offset = 128;
         uint finalizeOffset = 128 + UNITS_PER_SEAL * 32;
+        bool blake2bError = false;
 
         assembly {
             let argPtr := add(slots, 0x1c)
@@ -100,7 +101,7 @@ library MineLib {
 
             for {
 
-            } lt(offset, finalizeOffset) {
+            } and(lt(offset, finalizeOffset), not(blake2bError)) {
 
             } {
                 offset := add(offset, 0x80)
@@ -118,10 +119,11 @@ library MineLib {
                 }
 
                 if iszero(staticcall(not(0), 0x09, argPtr, 0xd5, hPtr, 0x40)) {
-                    revert(0, 0)
+                    blake2bError := true
                 }
             }
         }
+        require(!blake2bError, "blake2b internal error at PoRA hash");
         // The blake2b hash locates at slots[1] and slots[2].
         // Here we only return the first 32 bytes of the blake2b hash.
         return slots[1];

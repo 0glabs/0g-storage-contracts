@@ -224,7 +224,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
             uint scaledTarget = poraTarget >> 16;
             scaledExpected = Math.mulDiv(scaledTarget, targetMineBlocks, currentSubmissions);
         } else {
-            scaledExpected = type(uint).max >> 16;    
+            scaledExpected = type(uint).max >> 16;
         }
 
         _adjustDifficultyInner(scaledExpected);
@@ -235,7 +235,7 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
     }
 
     function _adjustDifficultyInner(uint scaledExpected) internal {
-        if(fixedDifficulty) {
+        if (fixedDifficulty) {
             return;
         }
         uint scaledTarget = poraTarget >> 16;
@@ -327,13 +327,13 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         if (block.number <= subtaskMineStart || block.number - subtaskMineStart > targetMineBlocks) {
             return answer;
         }
-        
+
         answer.subtaskDigest = keccak256(abi.encode(answer.context.digest, blockhash(subtaskMineStart)));
 
         if (answer.context.epoch > lastMinedEpoch) {
             _updateMineEpochWhenNeeded(answer.context);
         }
-        
+
         if (currentSubmissions < targetSubmissions * 2) {
             answer.poraTarget = poraTarget;
         }

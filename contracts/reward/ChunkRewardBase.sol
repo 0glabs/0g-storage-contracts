@@ -78,7 +78,7 @@ abstract contract ChunkRewardBase is IReward, PullPayment, ZgInitializable, Acce
         }
     }
 
-    function claimMineReward(uint pricingIndex, address payable beneficiary, bytes32) external {
+    function claimMineReward(uint pricingIndex, address payable beneficiary, bytes32 minerID) external {
         require(_msgSender() == mine, "Sender does not have permission");
 
         Reward memory reward = rewards[pricingIndex];
@@ -95,7 +95,7 @@ abstract contract ChunkRewardBase is IReward, PullPayment, ZgInitializable, Acce
 
         if (rewardAmount > 0) {
             _asyncTransfer(beneficiary, rewardAmount);
-            emit DistributeReward(pricingIndex, beneficiary, rewardAmount);
+            emit DistributeReward(pricingIndex, beneficiary, minerID, rewardAmount);
         }
     }
 

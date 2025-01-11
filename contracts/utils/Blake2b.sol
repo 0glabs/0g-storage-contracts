@@ -85,11 +85,13 @@ library Blake2b {
         bytes8[2] memory t = blake2bLength(offset);
         bytes memory args = abi.encodePacked(rounds, h[0], h[1], m0, m1, m2, m3, t[0], t[1], finalize);
 
+        uint blake2bOut;
+
         assembly {
-            if iszero(staticcall(not(0), 0x09, add(args, 32), 0xd5, output, 0x40)) {
-                revert(0, 0)
-            }
+            blake2bOut := staticcall(not(0), 0x09, add(args, 32), 0xd5, output, 0x40)
         }
+
+        require(blake2bOut != 0, "blake2b internal error at blake2bF");
     }
 
     function blake2bLength(uint length) internal pure returns (bytes8[2] memory t) {
