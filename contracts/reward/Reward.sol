@@ -45,7 +45,7 @@ library RewardLibrary {
     }
 
     function linearDecayReward(Reward memory reward, uint releaseSeconds) internal view returns (uint) {
-        if (reward.lastUpdate == 0) {
+        if (reward.startTime == 0) {
             return 0;
         }
 
@@ -65,6 +65,9 @@ library RewardLibrary {
     }
 
     function claimReward(Reward memory reward) internal pure returns (uint amount) {
+        if (reward.startTime == 0) {
+            return 0;
+        }
         uint128 claimedReward = reward.claimableReward / 2;
         reward.claimableReward -= claimedReward;
         reward.distributedReward += claimedReward;

@@ -24,7 +24,7 @@ contract ChunkLinearReward is ChunkRewardBase {
     }
 
     function _baseReward(uint, Reward memory reward, uint) internal view override returns (uint) {
-        if (reward.startTime + releaseSeconds > block.timestamp) {
+        if (reward.startTime == 0 && reward.startTime + releaseSeconds > block.timestamp) {
             return baseReward;
         } else {
             return 0;

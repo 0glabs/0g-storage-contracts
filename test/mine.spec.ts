@@ -99,7 +99,7 @@ describe("Miner", function () {
         nonceSeed?: number;
         shardMask?: bigint;
         shardId?: bigint;
-        subtaskBlockDigest?: Buffer,
+        subtaskBlockDigest?: Buffer;
     }) {
         const nonce = await keccak256(nonceSeed?.toString() || "nonce");
 
@@ -122,7 +122,9 @@ describe("Miner", function () {
             )
         );
         const context: MineContextStruct = await makeContextDigest(tree);
-        const subtaskDigest: Buffer = await keccak256(Buffer.concat([context.digest, subtaskBlockDigest || context.blockDigest]));
+        const subtaskDigest: Buffer = await keccak256(
+            Buffer.concat([context.digest, subtaskBlockDigest || context.blockDigest])
+        );
         const { scratchPad, chunkOffset, padSeed } = await makeScratchPad(
             minerId,
             nonce,
@@ -184,7 +186,9 @@ describe("Miner", function () {
 
         expect(hexToBuffer(await mineContract.recoverMerkleRoot(answer, unsealedData))).to.deep.equal(tree.root());
 
-        expect(hexToBuffer(await mineContract.pora(answer, subtaskDigest))).to.deep.equal(hexToBuffer(quality.slice(0, 64)));
+        expect(hexToBuffer(await mineContract.pora(answer, subtaskDigest))).to.deep.equal(
+            hexToBuffer(quality.slice(0, 64))
+        );
 
         await mockFlow.mock.getEpochRange
             .withArgs(answer.sealedContextDigest)
@@ -213,7 +217,9 @@ describe("Miner", function () {
 
             expect(hexToBuffer(await mineContract.recoverMerkleRoot(answer, unsealedData))).to.deep.equal(tree.root());
 
-            expect(hexToBuffer(await mineContract.pora(answer, subtaskDigest))).to.deep.equal(hexToBuffer(quality.slice(0, 64)));
+            expect(hexToBuffer(await mineContract.pora(answer, subtaskDigest))).to.deep.equal(
+                hexToBuffer(quality.slice(0, 64))
+            );
 
             await mockFlow.mock.getEpochRange
                 .withArgs(answer.sealedContextDigest)
@@ -400,11 +406,7 @@ async function seal(
     return sealedData;
 }
 
-async function makeContextDigest(
-    tree: MockMerkle,
-    epoch?: number,
-    mineStart?: number,
-): Promise<MineContextStruct> {
+async function makeContextDigest(tree: MockMerkle, epoch?: number, mineStart?: number): Promise<MineContextStruct> {
     const KeccakEmpty: Buffer = hexToBuffer("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 
     if (epoch === undefined) {
@@ -415,8 +417,8 @@ async function makeContextDigest(
         mineStart = await ethers.provider.getBlockNumber();
     }
 
-    const startBlock = (await ethers.provider.getBlock(mineStart)) !;
-    const blockDigest = hexToBuffer(startBlock.hash !);
+    const startBlock = (await ethers.provider.getBlock(mineStart))!;
+    const blockDigest = hexToBuffer(startBlock.hash!);
 
     const context: MineContextStruct = {
         epoch,

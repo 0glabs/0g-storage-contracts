@@ -88,8 +88,8 @@ abstract contract ChunkRewardBase is IReward, PullPayment, ZgInitializable, Acce
         uint rewardAmount = reward.claimReward();
         rewards[pricingIndex] = reward;
 
-        uint approvedReward = _baseReward(pricingIndex, reward, rewardAmount);
-        uint actualBaseReward = totalBaseReward > approvedReward ? approvedReward : totalBaseReward;
+        uint approvedBaseReward = _baseReward(pricingIndex, reward, rewardAmount);
+        uint actualBaseReward = totalBaseReward > approvedBaseReward ? approvedBaseReward : totalBaseReward;
         rewardAmount += actualBaseReward;
         totalBaseReward -= actualBaseReward;
 
