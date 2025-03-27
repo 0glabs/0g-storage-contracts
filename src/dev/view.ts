@@ -58,7 +58,7 @@ async function printStatus(flow: FixedPriceFlow, mine: PoraMine) {
 
     const context = await flow.makeContextWithResult.staticCall();
     console.log("\n============= Flow information =============");
-    console.log("current length: %d", context.flowLength);
+    console.log("current length: %d (%d pricing chunks)", context.flowLength, context.flowLength / 33554432n);
     console.log("current flow root: %s", context.flowRoot);
     console.log("current context digest: %s", context.digest);
 
@@ -198,12 +198,54 @@ async function printMineSubmissions(mine: PoraMine, blocks: number = 1000) {
     console.log("====== Mine Submission Events (last %d blocks) ======", blocks);
     await queryEvents<TypedNewSubmissionEvent>(blocks, mine, mine.filters.NewSubmission(), async function (event) {
         console.log(
-            "Mine submission, epoch: %d\tindex: %d,\ttx hash: %s",
+            "Mine submission, epoch: %d\tindex: %d,\tposition: %d - %d\ttx hash: %s",
             event.args.epoch,
             event.args.epochIndex,
+            event.args.recallPosition / 33554432n,
+            event.args.recallPosition % 33554432n,
             event.transactionHash
         );
     });
+    console.log("<<<<<<<< Done <<<<<<<<<<\n");
+}
+
+async function printRewardPool(reward: ChunkLinearReward, chunks: number) {
+    const toDate = function (timestamp) {
+        const date = new Date(Number(timestamp * 1000n));
+        return date.toISOString();
+    };
+    const base = 1000000000000000n;
+    console.log("====== Reward pool ======");
+
+    const [releaseSeconds, baseReward, totalBaseReward, firstRewardableChunk] = await Promise.all([
+        reward.releaseSeconds(),
+        reward.baseReward(),
+        reward.totalBaseReward(),
+        reward.firstRewardableChunk(),
+    ]);
+
+    console.log("Note: 1000 mZG = 1 ZG");
+    console.log(`release days: ${releaseSeconds / 86400n}`);
+    console.log(`base reward: ${baseReward / base} mZG`);
+    console.log(`total base reward: ${totalBaseReward / base} mZG`);
+    console.log(`first rewardable chunk: ${firstRewardableChunk}`);
+
+    for (let i = firstRewardableChunk; i < chunks; i++) {
+        const res = await reward.rewards(i);
+        console.log(
+            `[Pool ${i}]\tlocked: ${res.lockedReward / base} mZG,\tclaimable: ${
+                res.claimableReward / base
+            } mZG,\tdistributed: ${res.distributedReward / base} mZG,\tstart time: ${toDate(
+                res.startTime
+            )},\tlast update: ${toDate(res.lastUpdate)}`
+        );
+    }
+    const res = await reward.rewards(chunks);
+    console.log(
+        `[Pool next]\treward: ${res.lockedReward / base},\tclaimable: ${res.claimableReward / base},\tdistributed: ${
+            res.distributedReward / base
+        },\tstart time: ${toDate(res.startTime)},\tlast update: ${toDate(res.lastUpdate)}`
+    );
     console.log("<<<<<<<< Done <<<<<<<<<<\n");
 }
 
@@ -221,6 +263,8 @@ async function main() {
     await printContext(flow);
     await printReward(reward);
     await printMineSubmissions(mine);
+    const pricingChunks = Number((await flow.makeContextWithResult.staticCall()).flowLength / 33554432n);
+    await printRewardPool(reward, pricingChunks);
     // await updateContext(flow);
 }
 
