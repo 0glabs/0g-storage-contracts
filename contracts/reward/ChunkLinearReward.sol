@@ -44,7 +44,7 @@ contract ChunkLinearReward is ChunkRewardBase {
         return deadline != 0 && deadline < block.timestamp;
     }
 
-    function firstRewardableChunk() public view returns (uint64) {
+    function firstRewardableChunk() public view returns (uint64, uint) {
         uint64 low = 0;
         uint64 high = 1024;
 
@@ -62,6 +62,6 @@ contract ChunkLinearReward is ChunkRewardBase {
             }
         }
 
-        return low;
+        return (low, block.timestamp);
     }
 }
