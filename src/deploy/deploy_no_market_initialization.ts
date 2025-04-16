@@ -16,20 +16,16 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const dummyReward_ = await getTypedContract(hre, CONTRACTS.DummyReward);
 
     console.log(`initializing pora mine test..`);
-    if (!(await poraMineTest_.initialized())) {
-        await (
-            await poraMineTest_.initialize(
-                config.mineConfigs.initDifficulty,
-                await flow_.getAddress(),
-                await dummyReward_.getAddress()
-            )
-        ).wait();
-    }
+    await (
+        await poraMineTest_.initialize(
+            config.mineConfigs.initDifficulty,
+            await flow_.getAddress(),
+            await dummyReward_.getAddress()
+        )
+    ).wait();
 
     console.log(`initializing flow..`);
-    if (!(await flow_.initialized())) {
-        await (await flow_.initialize(await dummyMarket_.getAddress(), config.blocksPerEpoch)).wait();
-    }
+    await (await flow_.initialize(await dummyMarket_.getAddress(), config.blocksPerEpoch)).wait();
     console.log(`all contract initialized.`);
 };
 

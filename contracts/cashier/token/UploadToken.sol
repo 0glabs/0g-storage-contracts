@@ -66,12 +66,13 @@ contract UploadToken is ERC20, IUploadToken, OnlySender {
         _burn(account, storedBalance - realBalance);
     }
 
-    function _beforeTokenTransfer(address from, address to, uint) internal override {
+    function _update(address from, address to, uint value) internal override {
         if (to == address(0)) {
             return;
         }
         updateBalance(from);
         updateBalance(to);
+        super._update(from, to, value);
     }
 
     function balanceOf(address account) public view override(ERC20, IERC20) returns (uint) {

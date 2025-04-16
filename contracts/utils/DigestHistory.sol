@@ -10,7 +10,7 @@ contract DigestHistory is IDigestHistory, Ownable {
 
     error UnavailableIndex(uint);
 
-    constructor(uint capacity) {
+    constructor(uint capacity) Ownable(msg.sender) {
         digests = new bytes32[](capacity);
         nextIndex = 0;
     }

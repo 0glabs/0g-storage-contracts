@@ -103,7 +103,7 @@ export async function deployInBeaconProxy(
     await deployments.deploy(`${contract.name}Beacon`, {
         from: deployer,
         contract: UPGRADEABLE_BEACON,
-        args: [await implementation.getAddress()],
+        args: [await implementation.getAddress(), deployer],
         log: true,
     });
     const beacon = await hre.ethers.getContract(`${contract.name}Beacon`);
