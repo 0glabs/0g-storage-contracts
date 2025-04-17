@@ -23,8 +23,8 @@ const userConfig: HttpNetworkUserConfig = {
 import "./src/tasks/access";
 import "./src/tasks/codesize";
 import "./src/tasks/flow";
-import "./src/tasks/reward";
 import "./src/tasks/mine";
+import "./src/tasks/reward";
 import "./src/tasks/upgrade";
 
 const config: HardhatUserConfig = {
@@ -37,7 +37,7 @@ const config: HardhatUserConfig = {
     solidity: {
         compilers: [
             {
-                version: "0.8.16",
+                version: "0.8.20",
                 settings: {
                     outputSelection: {
                         "*": {

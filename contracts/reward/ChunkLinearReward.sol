@@ -10,9 +10,6 @@ import "../utils/MarketSpec.sol";
 contract ChunkLinearReward is ChunkRewardBase {
     using RewardLibrary for Reward;
 
-    // reserved storage slots for base contract upgrade in future
-    uint[50] private __gap;
-
     uint public immutable releaseSeconds;
 
     constructor(uint releaseSeconds_) {
@@ -25,14 +22,14 @@ contract ChunkLinearReward is ChunkRewardBase {
 
     function _baseReward(uint, Reward memory reward, uint) internal view override returns (uint) {
         if (reward.startTime != 0 && reward.startTime + releaseSeconds > block.timestamp) {
-            return baseReward;
+            return baseReward();
         } else {
             return 0;
         }
     }
 
     function rewardDeadline(uint pricingIndex) public view returns (uint) {
-        Reward memory reward = rewards[pricingIndex];
+        Reward memory reward = rewards(pricingIndex);
         if (reward.startTime == 0) {
             return 0;
         }

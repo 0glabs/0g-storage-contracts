@@ -10,9 +10,6 @@ contract ChunkDecayReward is ChunkRewardBase {
     using RewardLibrary for Reward;
     uint16 public immutable annualMilliDecayRate;
 
-    // reserved storage slots for base contract upgrade in future
-    uint[50] private __gap;
-
     constructor(uint16 annualMilliDecayRate_) {
         annualMilliDecayRate = annualMilliDecayRate_;
     }
@@ -22,6 +19,6 @@ contract ChunkDecayReward is ChunkRewardBase {
     }
 
     function _baseReward(uint, Reward memory, uint) internal view override returns (uint) {
-        return baseReward;
+        return baseReward();
     }
 }

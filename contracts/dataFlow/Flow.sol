@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity >=0.8.0 <0.9.0;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+pragma solidity ^0.8.0;
+
 import "./FlowTreeLib.sol";
-import "../utils/ZgInitializable.sol";
 import "../utils/DigestHistory.sol";
 import "../utils/ZgsSpec.sol";
 import "../interfaces/IDigestHistory.sol";
@@ -15,8 +14,9 @@ import "../security/PauseControl.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract Flow is IFlow, PauseControl, ZgInitializable {
+contract Flow is IFlow, PauseControl {
     using SubmissionLibrary for Submission;
     using SafeERC20 for IERC20;
     using FlowTreeLib for FlowTree;
@@ -33,22 +33,30 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
     uint[50] private __gap;
 
     // states
-    address payable public market;
+    /// @custom:storage-location erc7201:0g.storage.Flow
+    struct FlowStorage {
+        address payable market;
+        FlowTree tree;
+        uint submissionIndex;
+        uint epoch;
+        uint epochStartPosition;
+        MineContext context;
+        mapping(bytes32 => EpochRange) epochRanges;
+        EpochRangeWithContextDigest[] epochRangeHistory;
+        mapping(uint => bytes32) rootByTxSeq;
+        uint firstBlock;
+        IDigestHistory rootHistory;
+        uint blocksPerEpoch;
+    }
 
-    FlowTree public tree;
+    // keccak256(abi.encode(uint(keccak256("0g.storage.Flow")) - 1)) & ~bytes32(uint(0xff))
+    bytes32 private constant FlowStorageLocation = 0x2c76cc46aac583da4777117fb4419fbb43af6051f6353fccbce7a36d394f5500;
 
-    uint public submissionIndex;
-    uint public epoch;
-    uint public epochStartPosition;
-
-    MineContext private context;
-    mapping(bytes32 => EpochRange) private epochRanges;
-    EpochRangeWithContextDigest[] private epochRangeHistory;
-
-    mapping(uint => bytes32) private rootByTxSeq;
-    uint public firstBlock;
-    IDigestHistory public rootHistory;
-    uint public blocksPerEpoch;
+    function _getFlowStorage() private pure returns (FlowStorage storage $) {
+        assembly {
+            $.slot := FlowStorageLocation
+        }
+    }
 
     error InvalidSubmission();
 
@@ -57,53 +65,110 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
     }
 
     function _initialize(address market_) internal virtual {
+        FlowStorage storage $ = _getFlowStorage();
+
         // initialize incremental merkle tree
-        tree.initialize(bytes32(0x0));
+        $.tree.initialize(bytes32(0x0));
         // initialize flow
-        market = payable(market_);
+        $.market = payable(market_);
 
-        epoch = 0;
+        $.epoch = 0;
 
-        context = MineContext({
+        $.context = MineContext({
             epoch: 0,
-            mineStart: firstBlock,
-            flowRoot: tree.root(),
+            mineStart: $.firstBlock,
+            flowRoot: $.tree.root(),
             flowLength: 1,
             blockDigest: EMPTY_HASH,
             digest: EMPTY_HASH
         });
         // initialize admin and pause control
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(PAUSER_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(PAUSER_ROLE, msg.sender);
     }
 
-    function initialize(address market_, uint blocksPerEpoch_) public virtual onlyInitializeOnce {
+    function initialize(address market_, uint blocksPerEpoch_) public virtual initializer {
         _initialize(market_);
         _setParams(blocksPerEpoch_, block.number + deployDelay, address(new DigestHistory(ROOT_AVAILABLE_WINDOW)));
     }
+
+    /*=== view functions ===*/
+
+    function market() public view returns (address payable) {
+        return _getFlowStorage().market;
+    }
+
+    function tree() public view returns (uint currentLength, uint unstagedHeight) {
+        FlowTree memory t = _getFlowStorage().tree;
+        return (t.currentLength, t.unstagedHeight);
+    }
+
+    function submissionIndex() public view returns (uint) {
+        return _getFlowStorage().submissionIndex;
+    }
+
+    function epoch() public view returns (uint) {
+        return _getFlowStorage().epoch;
+    }
+
+    function epochStartPosition() public view returns (uint) {
+        return _getFlowStorage().epochStartPosition;
+    }
+
+    function getContext() public view returns (MineContext memory) {
+        return _getFlowStorage().context;
+    }
+
+    function getEpochRange(bytes32 digest) public view returns (EpochRange memory) {
+        return _getFlowStorage().epochRanges[digest];
+    }
+
+    function getEpochRangeHistory(uint index) public view returns (EpochRangeWithContextDigest memory) {
+        return _getFlowStorage().epochRangeHistory[index];
+    }
+
+    function getFlowRootByTxSeq(uint txSeq) public view returns (bytes32) {
+        return _getFlowStorage().rootByTxSeq[txSeq];
+    }
+
+    function firstBlock() public view returns (uint) {
+        return _getFlowStorage().firstBlock;
+    }
+
+    function rootHistory() public view returns (IDigestHistory) {
+        return _getFlowStorage().rootHistory;
+    }
+
+    function blocksPerEpoch() public view returns (uint) {
+        return _getFlowStorage().blocksPerEpoch;
+    }
+
+    /*=== main ===*/
 
     function setParams(uint blocksPerEpoch_, uint firstBlock_, address rootHistory_) external {
         _setParams(blocksPerEpoch_, firstBlock_, rootHistory_);
     }
 
     function _setParams(uint blocksPerEpoch_, uint firstBlock_, address rootHistory_) internal {
-        if (blocksPerEpoch == 0) {
-            blocksPerEpoch = blocksPerEpoch_;
+        FlowStorage storage $ = _getFlowStorage();
+        if ($.blocksPerEpoch == 0) {
+            $.blocksPerEpoch = blocksPerEpoch_;
         }
-        if (firstBlock == 0) {
-            firstBlock = firstBlock_;
+        if ($.firstBlock == 0) {
+            $.firstBlock = firstBlock_;
         }
-        if (address(rootHistory) == address(0)) {
+        if (address($.rootHistory) == address(0)) {
             if (rootHistory_ == address(0)) {
-                rootHistory = new DigestHistory(ROOT_AVAILABLE_WINDOW);
+                $.rootHistory = new DigestHistory(ROOT_AVAILABLE_WINDOW);
             } else {
-                rootHistory = IDigestHistory(rootHistory_);
+                $.rootHistory = IDigestHistory(rootHistory_);
             }
         }
     }
 
     modifier launched() {
-        require(block.number >= firstBlock, "Contract has not launched.");
+        FlowStorage storage $ = _getFlowStorage();
+        require(block.number >= $.firstBlock, "Contract has not launched.");
         _;
     }
 
@@ -134,7 +199,8 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
 
     function submit(
         Submission memory submission
-    ) public payable whenNotPaused launched returns (uint, bytes32, uint, uint) {
+    ) public payable whenNotPaused launched returns (uint index, bytes32, uint, uint) {
+        FlowStorage storage $ = _getFlowStorage();
         require(submission.valid(), "Invalid submission");
 
         uint length = submission.size();
@@ -145,11 +211,11 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
         uint startIndex = _insertNodeList(submission);
 
         bytes32 digest = submission.digest();
-        uint index = submissionIndex;
-        submissionIndex += 1;
+        index = $.submissionIndex;
+        $.submissionIndex += 1;
 
-        tree.commitRoot();
-        rootByTxSeq[index] = tree.root();
+        $.tree.commitRoot();
+        $.rootByTxSeq[index] = $.tree.root();
 
         emit Submit(msg.sender, digest, index, startIndex, length, submission);
 
@@ -157,35 +223,38 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
     }
 
     function _insertNodeList(Submission memory submission) internal returns (uint startIndex) {
-        uint previousLength = tree.currentLength;
-        tree.pad(submission);
+        FlowStorage storage $ = _getFlowStorage();
+        uint previousLength = $.tree.currentLength;
+        $.tree.pad(submission);
         for (uint i = 0; i < submission.nodes.length; i++) {
             bytes32 nodeRoot = submission.nodes[i].root;
             uint height = submission.nodes[i].height;
-            uint nodeStartIndex = tree.insertNode(nodeRoot, height);
+            uint nodeStartIndex = $.tree.insertNode(nodeRoot, height);
             if (i == 0) {
                 startIndex = nodeStartIndex;
             }
         }
 
         uint paddedLength = startIndex - previousLength;
-        uint chargedLength = tree.currentLength - startIndex;
+        uint chargedLength = $.tree.currentLength - startIndex;
 
-        IMarket(market).chargeFee(previousLength, chargedLength, paddedLength);
+        IMarket($.market).chargeFee(previousLength, chargedLength, paddedLength);
     }
 
     function _makeContext() internal whenNotPaused returns (bool) {
+        FlowStorage storage $ = _getFlowStorage();
+
         uint nextEpochStart;
         unchecked {
-            nextEpochStart = firstBlock + (epoch + 1) * blocksPerEpoch;
+            nextEpochStart = $.firstBlock + ($.epoch + 1) * $.blocksPerEpoch;
         }
 
         if (nextEpochStart >= block.number) {
             return false;
         }
-        tree.commitRoot();
-        bytes32 currentRoot = tree.root();
-        rootHistory.insert(currentRoot);
+        $.tree.commitRoot();
+        bytes32 currentRoot = $.tree.root();
+        $.rootHistory.insert(currentRoot);
         // assert(index == epoch);
 
         bytes32 contextDigest;
@@ -196,30 +265,30 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
             blockDigest = EMPTY_HASH;
         } else {
             blockDigest = blockhash(nextEpochStart);
-            contextDigest = keccak256(abi.encode(blockDigest, currentRoot, tree.currentLength));
+            contextDigest = keccak256(abi.encode(blockDigest, currentRoot, $.tree.currentLength));
 
-            uint128 startPosition = uint128(epochStartPosition);
-            uint128 endPosition = uint128(tree.currentLength);
-            epochRanges[contextDigest] = EpochRange({start: startPosition, end: endPosition});
-            epochRangeHistory.push(
+            uint128 startPosition = uint128($.epochStartPosition);
+            uint128 endPosition = uint128($.tree.currentLength);
+            $.epochRanges[contextDigest] = EpochRange({start: startPosition, end: endPosition});
+            $.epochRangeHistory.push(
                 EpochRangeWithContextDigest({start: startPosition, end: endPosition, digest: contextDigest})
             );
 
-            epochStartPosition = tree.currentLength;
+            $.epochStartPosition = $.tree.currentLength;
         }
 
-        epoch += 1;
+        $.epoch += 1;
 
-        context = MineContext({
-            epoch: epoch,
+        $.context = MineContext({
+            epoch: $.epoch,
             mineStart: nextEpochStart,
             flowRoot: currentRoot,
-            flowLength: tree.currentLength,
+            flowLength: $.tree.currentLength,
             blockDigest: blockDigest,
             digest: contextDigest
         });
 
-        emit NewEpoch(msg.sender, epoch, currentRoot, submissionIndex, tree.currentLength, contextDigest);
+        emit NewEpoch(msg.sender, $.epoch, currentRoot, $.submissionIndex, $.tree.currentLength, contextDigest);
         return true;
     }
 
@@ -238,13 +307,15 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
     function queryContextAtPosition(
         uint128 targetPosition
     ) external returns (EpochRangeWithContextDigest memory range) {
+        FlowStorage storage $ = _getFlowStorage();
+
         makeContext();
-        require(targetPosition < tree.currentLength, "Queried position exceeds upper bound");
+        require(targetPosition < $.tree.currentLength, "Queried position exceeds upper bound");
         uint minIndex = 0;
-        uint maxIndex = epochRangeHistory.length;
+        uint maxIndex = $.epochRangeHistory.length;
         while (maxIndex > minIndex) {
             uint curIndex = (maxIndex + minIndex) / 2;
-            range = epochRangeHistory[curIndex];
+            range = $.epochRangeHistory[curIndex];
             if (targetPosition >= range.end) {
                 minIndex = curIndex + 1;
             } else if (targetPosition >= range.start) {
@@ -263,24 +334,13 @@ contract Flow is IFlow, PauseControl, ZgInitializable {
     }
 
     function computeFlowRoot() public returns (bytes32) {
-        tree.commitRoot();
-        return tree.root();
-    }
-
-    function getContext() public view returns (MineContext memory) {
-        MineContext memory _context = context;
-        return _context;
-    }
-
-    function getEpochRange(bytes32 digest) external view returns (EpochRange memory) {
-        return epochRanges[digest];
+        FlowStorage storage $ = _getFlowStorage();
+        $.tree.commitRoot();
+        return $.tree.root();
     }
 
     function numSubmissions() external view returns (uint) {
-        return submissionIndex;
-    }
-
-    function getFlowRootByTxSeq(uint txSeq) public view returns (bytes32) {
-        return rootByTxSeq[txSeq];
+        FlowStorage storage $ = _getFlowStorage();
+        return $.submissionIndex;
     }
 }

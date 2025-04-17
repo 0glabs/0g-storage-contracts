@@ -12,8 +12,9 @@ contract BatteryToken is ERC20, ISafeERC20 {
         uploadToken = ISafeERC20(_uploadToken);
     }
 
-    function _beforeTokenTransfer(address from, address, uint amount) internal view override {
+    function _update(address from, address to, uint amount) internal override {
         require(chargedBalance[from] + amount >= balanceOf(from), "Balance < Charged balance");
+        super._update(from, to, amount);
     }
 
     function charge(uint amount) external {

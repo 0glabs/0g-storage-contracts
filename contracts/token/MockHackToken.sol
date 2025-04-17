@@ -12,7 +12,8 @@ contract MockHackToken is ERC20, ISafeERC20 {
         _mint(msg.sender, 1000);
     }
 
-    function _afterTokenTransfer(address, address to, uint amount) internal override {
+    function _update(address from, address to, uint amount) internal override {
+        super._update(from, to, amount);
         if (to == address(0)) {
             return;
         }

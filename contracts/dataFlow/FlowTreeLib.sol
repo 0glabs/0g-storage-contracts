@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity >=0.8.0 <0.9.0;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../interfaces/Submission.sol";
 import "../utils/ZgsSpec.sol";
 
@@ -13,7 +12,6 @@ struct FlowTree {
 
 library FlowTreeLib {
     using SubmissionLibrary for Submission;
-    using SafeMath for uint;
 
     function initialize(FlowTree storage tree, bytes32 identifier) internal {
         tree.currentLength = 1;

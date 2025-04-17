@@ -4,12 +4,11 @@ pragma solidity >=0.8.0 <0.9.0;
 import "../interfaces/IMarket.sol";
 import "../interfaces/IReward.sol";
 import "../utils/MarketSpec.sol";
-import "../utils/ZgInitializable.sol";
 
 import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import {AccessControlEnumerableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 
-contract FixedPrice is IMarket, ZgInitializable, AccessControlEnumerable {
+contract FixedPrice is IMarket, AccessControlEnumerableUpgradeable {
     // reserved storage slots for base contract upgrade in future
     uint[50] private __gap;
 
@@ -20,7 +19,7 @@ contract FixedPrice is IMarket, ZgInitializable, AccessControlEnumerable {
     address public flow;
     address public reward;
 
-    function initialize(uint pricePerSector_, address flow_, address reward_) public onlyInitializeOnce {
+    function initialize(uint pricePerSector_, address flow_, address reward_) public initializer {
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _grantRole(PARAMS_ADMIN_ROLE, _msgSender());
 

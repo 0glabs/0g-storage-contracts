@@ -3,7 +3,9 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/escrow/Escrow.sol";
+import "./Escrow.sol";
+
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * @dev Simple implementation of a
@@ -23,8 +25,31 @@ import "@openzeppelin/contracts/utils/escrow/Escrow.sol";
  * instead of Solidity's `transfer` function. Payees can query their due
  * payments with {payments}, and retrieve them with {withdrawPayments}.
  */
-abstract contract PullPayment {
-    Escrow internal _escrow;
+abstract contract PullPayment is Initializable {
+    /// @custom:storage-location erc7201:0g.storage.PullPayment
+    struct PullPaymentStorage {
+        Escrow escrow;
+    }
+
+    // keccak256(abi.encode(uint(keccak256("0g.storage.PullPayment")) - 1)) & ~bytes32(uint(0xff))
+    bytes32 private constant PullPaymentStorageLocation =
+        0x18886ccf3cb33ec4f8e31fd4f09d61266d4695ceab87fb3d39636905b707c100;
+
+    function _getPullPaymentStorage() private pure returns (PullPaymentStorage storage $) {
+        assembly {
+            $.slot := PullPaymentStorageLocation
+        }
+    }
+
+    function __PullPayment_init() internal onlyInitializing {
+        PullPaymentStorage storage $ = _getPullPaymentStorage();
+        $.escrow = new Escrow();
+    }
+
+    function _escrow() internal view returns (Escrow) {
+        PullPaymentStorage storage $ = _getPullPaymentStorage();
+        return $.escrow;
+    }
 
     /**
      * @dev Withdraw accumulated payments, forwarding all gas to the recipient.
@@ -43,7 +68,8 @@ abstract contract PullPayment {
      * Causes the `escrow` to emit a {Withdrawn} event.
      */
     function withdrawPayments(address payable payee) public virtual {
-        _escrow.withdraw(payee);
+        PullPaymentStorage storage $ = _getPullPaymentStorage();
+        $.escrow.withdraw(payee);
     }
 
     /**
@@ -51,7 +77,8 @@ abstract contract PullPayment {
      * @param dest The creditor's address.
      */
     function payments(address dest) public view returns (uint) {
-        return _escrow.depositsOf(dest);
+        PullPaymentStorage storage $ = _getPullPaymentStorage();
+        return $.escrow.depositsOf(dest);
     }
 
     /**
@@ -65,6 +92,7 @@ abstract contract PullPayment {
      * Causes the `escrow` to emit a {Deposited} event.
      */
     function _asyncTransfer(address dest, uint amount) internal virtual {
-        _escrow.deposit{value: amount}(dest);
+        PullPaymentStorage storage $ = _getPullPaymentStorage();
+        $.escrow.deposit{value: amount}(dest);
     }
 }

@@ -19,7 +19,7 @@ contract Coupon is ERC721, Ownable, OnlySender {
 
     uint private constant BASIC_PRICE = 1000;
 
-    constructor(address zgsToken_, address cashier_) ERC721("ZeroGStorageCoupon", "ZGS-CPN") {
+    constructor(address zgsToken_, address cashier_) ERC721("ZeroGStorageCoupon", "ZGS-CPN") Ownable(msg.sender) {
         zgsToken = ISafeERC20(zgsToken_);
         cashier = cashier_;
         nextTokenId = 1;
@@ -33,7 +33,7 @@ contract Coupon is ERC721, Ownable, OnlySender {
     }
 
     function fuel(uint tokenId, uint amount) public onlyOwner {
-        require(_exists(tokenId), "coupon does not exist");
+        require(_ownerOf(tokenId) != address(0), "coupon does not exist");
         require(amount <= totalUnusedBalance, "no capacity");
 
         totalUnusedBalance -= amount;
@@ -45,7 +45,7 @@ contract Coupon is ERC721, Ownable, OnlySender {
 
     function pay(address requester, uint tokenId, uint amount) external {
         require(msg.sender == cashier, "Only cashier can call");
-        require(ownerOf(tokenId) == requester, "Requester not own this token");
+        require(_ownerOf(tokenId) == requester, "Requester not own this token");
 
         uploadBalance[tokenId] -= amount;
         totalUnusedBalance += amount;
@@ -54,7 +54,7 @@ contract Coupon is ERC721, Ownable, OnlySender {
     }
 
     function revoke(uint tokenId) public onlyOwner {
-        require(_exists(tokenId), "coupon does not exist");
+        require(_ownerOf(tokenId) != address(0), "coupon does not exist");
 
         uint amount = uploadBalance[tokenId];
         zgsToken.transferFrom(cashier, msg.sender, amount * BASIC_PRICE);

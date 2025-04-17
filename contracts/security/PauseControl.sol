@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.2;
 
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {AccessControlEnumerableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 
-contract PauseControl is Pausable, AccessControlEnumerable {
+contract PauseControl is PausableUpgradeable, AccessControlEnumerableUpgradeable {
     // role
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 

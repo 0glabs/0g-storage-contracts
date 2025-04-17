@@ -1,13 +1,9 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity >=0.8.0 <0.9.0;
 
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../utils/DigestHistory.sol";
 import "../utils/BitMask.sol";
 import "../utils/ZgsSpec.sol";
-import "../utils/ZgInitializable.sol";
 import "../utils/Blake2b.sol";
 import "../interfaces/IMarket.sol";
 import "../interfaces/IFlow.sol";
@@ -18,11 +14,12 @@ import "./RecallRange.sol";
 import "./MineLib.sol";
 import "./WorkerContext.sol";
 
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import {AccessControlEnumerableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 
-contract PoraMine is ZgInitializable, AccessControlEnumerable {
+contract PoraMine is AccessControlEnumerableUpgradeable {
     using RecallRangeLib for RecallRange;
 
     bytes32 public constant PARAMS_ADMIN_ROLE = keccak256("PARAMS_ADMIN_ROLE");
@@ -40,29 +37,38 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
 
     uint64 private constant PORA_VERSION = 1;
 
-    // Deferred initializd fields
-    address public flow;
-    address public reward;
+    /// @custom:storage-location erc7201:0g.storage.PoraMine
+    struct PoraMineStorage {
+        // Deferred initialized fields
+        address flow;
+        address reward;
+        // Configurable parameters
+        uint targetMineBlocks;
+        uint targetSubmissions;
+        uint targetSubmissionsNextEpoch;
+        uint difficultyAdjustRatio;
+        uint64 maxShards;
+        // Contract state
+        uint lastMinedEpoch;
+        uint currentSubmissions;
+        uint poraTarget;
+        // Updated configurable parameters
+        uint minDifficulty;
+        uint nSubtasks;
+        // Mappings
+        mapping(bytes32 => bool) _submittedPora;
+        mapping(bytes32 => address) beneficiaries;
+    }
 
-    mapping(bytes32 => bool) private _submittedPora;
+    // keccak256(abi.encode(uint(keccak256("0g.storage.PoraMine")) - 1)) & ~bytes32(uint(0xff))
+    bytes32 private constant PoraMineStorageLocation =
+        0x11daa6f94f95391c200e8721026efe26699a21dbe0ead47ee9562dd85a6e3000;
 
-    // Configurable parameters
-    uint public targetMineBlocks;
-    uint public targetSubmissions;
-    uint public targetSubmissionsNextEpoch;
-    uint public difficultyAdjustRatio;
-    uint64 public maxShards;
-
-    // Contract state
-    uint public lastMinedEpoch;
-    uint public currentSubmissions;
-    uint public poraTarget;
-
-    mapping(bytes32 => address) public beneficiaries;
-
-    // Updated configurable parameters
-    uint public minDifficulty;
-    uint public nSubtasks;
+    function _getPoraMineStorage() private pure returns (PoraMineStorage storage $) {
+        assembly {
+            $.slot := PoraMineStorageLocation
+        }
+    }
 
     event NewMinerId(bytes32 indexed minerId, address indexed beneficiary);
     event UpdateMinerId(bytes32 indexed minerId, address indexed from, address indexed to);
@@ -74,42 +80,102 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         fixedDifficulty = (settings & FIXED_DIFFICULTY != 0);
     }
 
-    function initialize(uint difficulty, address flow_, address reward_) public onlyInitializeOnce {
+    function initialize(uint difficulty, address flow_, address reward_) public initializer {
+        PoraMineStorage storage $ = _getPoraMineStorage();
+
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _grantRole(PARAMS_ADMIN_ROLE, _msgSender());
 
-        poraTarget = type(uint).max / difficulty;
+        $.poraTarget = type(uint).max / difficulty;
         if (fixedDifficulty) {
-            poraTarget = type(uint).max;
+            $.poraTarget = type(uint).max;
         }
-        flow = flow_;
-        reward = reward_;
-        targetMineBlocks = 100;
-        targetSubmissions = 10;
-        targetSubmissionsNextEpoch = 10;
-        difficultyAdjustRatio = 20;
-        maxShards = 32;
-        nSubtasks = 1;
+        $.flow = flow_;
+        $.reward = reward_;
+        $.targetMineBlocks = 100;
+        $.targetSubmissions = 10;
+        $.targetSubmissionsNextEpoch = 10;
+        $.difficultyAdjustRatio = 20;
+        $.maxShards = 32;
+        $.nSubtasks = 1;
     }
+
+    /*=== view functions ===*/
+
+    function flow() public view returns (address) {
+        return _getPoraMineStorage().flow;
+    }
+
+    function reward() public view returns (address) {
+        return _getPoraMineStorage().reward;
+    }
+
+    function targetMineBlocks() public view returns (uint) {
+        return _getPoraMineStorage().targetMineBlocks;
+    }
+
+    function targetSubmissions() public view returns (uint) {
+        return _getPoraMineStorage().targetSubmissions;
+    }
+
+    function targetSubmissionsNextEpoch() public view returns (uint) {
+        return _getPoraMineStorage().targetSubmissionsNextEpoch;
+    }
+
+    function difficultyAdjustRatio() public view returns (uint) {
+        return _getPoraMineStorage().difficultyAdjustRatio;
+    }
+
+    function maxShards() public view returns (uint64) {
+        return _getPoraMineStorage().maxShards;
+    }
+
+    function lastMinedEpoch() public view returns (uint) {
+        return _getPoraMineStorage().lastMinedEpoch;
+    }
+
+    function currentSubmissions() public view returns (uint) {
+        return _getPoraMineStorage().currentSubmissions;
+    }
+
+    function poraTarget() public view returns (uint) {
+        return _getPoraMineStorage().poraTarget;
+    }
+
+    function minDifficulty() public view returns (uint) {
+        return _getPoraMineStorage().minDifficulty;
+    }
+
+    function nSubtasks() public view returns (uint) {
+        return _getPoraMineStorage().nSubtasks;
+    }
+
+    function beneficiaries(bytes32 digest) public view returns (address) {
+        return _getPoraMineStorage().beneficiaries[digest];
+    }
+
+    /*=== main ===*/
 
     function poraVersion() external pure returns (uint64) {
         return PORA_VERSION;
     }
 
     function submit(MineLib.PoraAnswer memory answer) public {
+        PoraMineStorage storage $ = _getPoraMineStorage();
+
         // Step 1: check miner ID
         require(answer.minerId != bytes32(0), "MinerId cannot be zero");
-        address beneficiary = beneficiaries[answer.minerId];
+        address beneficiary = $.beneficiaries[answer.minerId];
         require(beneficiary != address(0), "MinerId does not registered");
 
         // Step 2: maintain context
-        MineContext memory context = IFlow(flow).makeContextWithResult();
+        MineContext memory context = IFlow($.flow).makeContextWithResult();
         _updateMineEpochWhenNeeded(context);
         bytes32 subtaskDigest = getSubtaskDigest(context, answer.minerId);
 
         // Step 3: basic check for submission
         basicCheck(answer, context);
-        require(answer.range.numShards() <= maxShards, "Exceeding the allowed number of shards");
+        require(answer.range.numShards() <= $.maxShards, "Exceeding the allowed number of shards");
 
         // Step 4: configurable check
         bytes32[UNITS_PER_SEAL] memory unsealedData;
@@ -128,35 +194,36 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
         bytes32 poraOutput = pora(answer, subtaskDigest);
         uint scaleX64 = answer.range.targetScaleX64(context.flowLength);
         // scaleX64 >= 2^64, so there is no overflow
-        require(uint(poraOutput) <= (poraTarget / scaleX64) << 64, "Do not reach target quality");
-        require(!_submittedPora[poraOutput], "Answer has been submitted");
-        _submittedPora[poraOutput] = true;
+        require(uint(poraOutput) <= ($.poraTarget / scaleX64) << 64, "Do not reach target quality");
+        require(!$._submittedPora[poraOutput], "Answer has been submitted");
+        $._submittedPora[poraOutput] = true;
 
         // Step 6: reward
-        IReward(reward).claimMineReward(
+        IReward($.reward).claimMineReward(
             answer.recallPosition / SECTORS_PER_PRICE,
             payable(beneficiary),
             answer.minerId
         );
 
         // Step 7: bump submission
-        emit NewSubmission(context.epoch, answer.minerId, currentSubmissions, answer.recallPosition);
-        lastMinedEpoch = context.epoch;
-        currentSubmissions += 1;
+        emit NewSubmission(context.epoch, answer.minerId, $.currentSubmissions, answer.recallPosition);
+        $.lastMinedEpoch = context.epoch;
+        $.currentSubmissions += 1;
     }
 
     function basicCheck(MineLib.PoraAnswer memory answer, MineContext memory context) public view {
+        PoraMineStorage storage $ = _getPoraMineStorage();
         // Check basic field
         require(context.digest == answer.contextDigest, "Inconsistent mining digest");
         require(context.digest != EMPTY_HASH, "Empty digest can not mine");
-        require(currentSubmissions < 2 * targetSubmissions, "Epoch has enough submissions");
+        require($.currentSubmissions < 2 * $.targetSubmissions, "Epoch has enough submissions");
 
         // Check validity of recall range
         uint maxLength = (context.flowLength / SECTORS_PER_LOAD) * SECTORS_PER_LOAD;
         answer.range.check(maxLength);
 
         // Check the sealing context is in the correct range.
-        EpochRange memory epochRange = IFlow(flow).getEpochRange(answer.sealedContextDigest);
+        EpochRange memory epochRange = IFlow($.flow).getEpochRange(answer.sealedContextDigest);
         uint recallEndPosition = answer.recallPosition + SECTORS_PER_SEAL;
         require(
             epochRange.start < recallEndPosition && epochRange.end >= recallEndPosition,
@@ -186,43 +253,48 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
     }
 
     function _updateMineEpochWhenNeeded(MineContext memory context) internal {
-        require(context.epoch >= lastMinedEpoch, "Internal error: epoch number decrease");
+        PoraMineStorage storage $ = _getPoraMineStorage();
+        require(context.epoch >= $.lastMinedEpoch, "Internal error: epoch number decrease");
 
-        if (context.epoch > lastMinedEpoch && lastMinedEpoch > 0) {
+        if (context.epoch > $.lastMinedEpoch && $.lastMinedEpoch > 0) {
             _adjustDifficultyOnNewEpoch();
-            currentSubmissions = 0;
-            targetSubmissions = targetSubmissionsNextEpoch;
+            $.currentSubmissions = 0;
+            $.targetSubmissions = $.targetSubmissionsNextEpoch;
         }
     }
 
     function getSubtaskDigest(MineContext memory context, bytes32 minerId) public view returns (bytes32) {
-        uint subtaskIdx = uint(keccak256(abi.encode(context.digest, minerId))) % nSubtasks;
+        PoraMineStorage storage $ = _getPoraMineStorage();
+        uint subtaskIdx = uint(keccak256(abi.encode(context.digest, minerId))) % $.nSubtasks;
         uint subtaskMineStart = context.mineStart + subtaskIdx;
         require(block.number > subtaskMineStart, "Earlier than expected subtask start block.");
-        require(block.number - subtaskMineStart <= targetMineBlocks, "Mine deadline exceed");
+        require(block.number - subtaskMineStart <= $.targetMineBlocks, "Mine deadline exceed");
 
         return keccak256(abi.encode(context.digest, blockhash(subtaskMineStart)));
     }
 
     function requestMinerId(address beneficiary, uint64 seed) public {
+        PoraMineStorage storage $ = _getPoraMineStorage();
         bytes32 minerId = keccak256(abi.encodePacked(blockhash(block.number - 1), msg.sender, seed));
-        require(beneficiaries[minerId] == address(0), "MinerId has registered");
-        beneficiaries[minerId] = beneficiary;
+        require($.beneficiaries[minerId] == address(0), "MinerId has registered");
+        $.beneficiaries[minerId] = beneficiary;
         emit NewMinerId(minerId, beneficiary);
     }
 
     function transferBeneficial(address to, bytes32 minerId) public {
-        require(beneficiaries[minerId] == msg.sender, "Sender does not own minerId");
-        beneficiaries[minerId] = to;
+        PoraMineStorage storage $ = _getPoraMineStorage();
+        require($.beneficiaries[minerId] == msg.sender, "Sender does not own minerId");
+        $.beneficiaries[minerId] = to;
         emit UpdateMinerId(minerId, msg.sender, to);
     }
 
     function _adjustDifficultyOnNewEpoch() internal {
+        PoraMineStorage storage $ = _getPoraMineStorage();
         // Remove least significant 16 bits to avoid overflow
         uint scaledExpected;
-        if (currentSubmissions > 0) {
-            uint scaledTarget = poraTarget >> 16;
-            scaledExpected = Math.mulDiv(scaledTarget, targetMineBlocks, currentSubmissions);
+        if ($.currentSubmissions > 0) {
+            uint scaledTarget = $.poraTarget >> 16;
+            scaledExpected = Math.mulDiv(scaledTarget, $.targetMineBlocks, $.currentSubmissions);
         } else {
             scaledExpected = type(uint).max >> 16;
         }
@@ -235,12 +307,13 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
     }
 
     function _adjustDifficultyInner(uint scaledExpected) internal {
+        PoraMineStorage storage $ = _getPoraMineStorage();
         if (fixedDifficulty) {
             return;
         }
-        uint scaledTarget = poraTarget >> 16;
+        uint scaledTarget = $.poraTarget >> 16;
 
-        uint n = difficultyAdjustRatio;
+        uint n = $.difficultyAdjustRatio;
 
         uint scaledAdjusted = (scaledTarget * (n - 1) + scaledExpected) / n;
 
@@ -256,86 +329,106 @@ contract PoraMine is ZgInitializable, AccessControlEnumerable {
             scaledAdjusted = type(uint).max >> 16;
         }
 
-        poraTarget = scaledAdjusted << 16;
+        $.poraTarget = scaledAdjusted << 16;
 
         uint maxPoraTarget = _maxPoraTarget();
-        if (poraTarget > maxPoraTarget) {
-            poraTarget = maxPoraTarget;
+        if ($.poraTarget > maxPoraTarget) {
+            $.poraTarget = maxPoraTarget;
         }
     }
 
     function _maxPoraTarget() internal view returns (uint) {
-        if (minDifficulty == 0) {
+        PoraMineStorage storage $ = _getPoraMineStorage();
+        if ($.minDifficulty == 0) {
             return type(uint).max;
         } else {
-            return type(uint).max / minDifficulty;
+            return type(uint).max / $.minDifficulty;
         }
     }
 
     function setTargetMineBlocks(uint targetMineBlocks_) external onlyRole(PARAMS_ADMIN_ROLE) {
         require(targetMineBlocks_ <= 256, "target mine block must <= 256");
-        targetMineBlocks = targetMineBlocks_;
+        PoraMineStorage storage $ = _getPoraMineStorage();
+        $.targetMineBlocks = targetMineBlocks_;
     }
 
     function setTargetSubmissions(uint targetSubmissions_) external onlyRole(PARAMS_ADMIN_ROLE) {
-        targetSubmissionsNextEpoch = targetSubmissions_;
-        if (lastMinedEpoch == 0) {
-            targetSubmissions = targetSubmissions_;
+        PoraMineStorage storage $ = _getPoraMineStorage();
+        $.targetSubmissionsNextEpoch = targetSubmissions_;
+        if ($.lastMinedEpoch == 0) {
+            $.targetSubmissions = targetSubmissions_;
         }
     }
 
     function setDifficultyAdjustRatio(uint difficultyAdjustRatio_) external onlyRole(PARAMS_ADMIN_ROLE) {
+        PoraMineStorage storage $ = _getPoraMineStorage();
         require(difficultyAdjustRatio_ > 0, "Adjust ratio must be non-zero");
-        difficultyAdjustRatio = difficultyAdjustRatio_;
+        $.difficultyAdjustRatio = difficultyAdjustRatio_;
     }
 
     function setMaxShards(uint64 maxShards_) external onlyRole(PARAMS_ADMIN_ROLE) {
         require(maxShards_ > 0, "Max shard number cannot be zero");
         require(maxShards_ & (maxShards_ - 1) == 0, "Max shard number must be power of 2");
-        maxShards = maxShards_;
+        PoraMineStorage storage $ = _getPoraMineStorage();
+        $.maxShards = maxShards_;
     }
 
     function setMinDifficulty(uint minDifficulty_) external onlyRole(PARAMS_ADMIN_ROLE) {
-        minDifficulty = minDifficulty_;
+        PoraMineStorage storage $ = _getPoraMineStorage();
+        $.minDifficulty = minDifficulty_;
         uint maxPoraTarget = _maxPoraTarget();
-        if (poraTarget > maxPoraTarget) {
-            poraTarget = maxPoraTarget;
+        if ($.poraTarget > maxPoraTarget) {
+            $.poraTarget = maxPoraTarget;
         }
     }
 
     function setNumSubtasks(uint nSubtasks_) external onlyRole(PARAMS_ADMIN_ROLE) {
+        PoraMineStorage storage $ = _getPoraMineStorage();
         require(nSubtasks_ > 0, "Number of subtasks cannot be zero");
-        require(nSubtasks_ < IFlow(flow).blocksPerEpoch(), "Number of subtasks must be less than blocks per epoch");
-        nSubtasks = nSubtasks_;
+        require(nSubtasks_ < IFlow($.flow).blocksPerEpoch(), "Number of subtasks must be less than blocks per epoch");
+        $.nSubtasks = nSubtasks_;
     }
 
     function canSubmit() external returns (bool) {
-        MineContext memory context = IFlow(flow).makeContextWithResult();
-        return context.epoch > lastMinedEpoch || currentSubmissions < targetSubmissions * 2;
+        PoraMineStorage storage $ = _getPoraMineStorage();
+        MineContext memory context = IFlow($.flow).makeContextWithResult();
+        return context.epoch > $.lastMinedEpoch || $.currentSubmissions < $.targetSubmissions * 2;
     }
 
     function computeWorkerContext(bytes32 minerId) external returns (WorkerContext memory answer) {
+        PoraMineStorage storage $ = _getPoraMineStorage();
         require(minerId != bytes32(0), "MinerId cannot be zero");
-        address beneficiary = beneficiaries[minerId];
+        address beneficiary = $.beneficiaries[minerId];
         require(beneficiary != address(0), "MinerId does not registered");
 
-        answer.maxShards = maxShards;
-        answer.context = IFlow(flow).makeContextWithResult();
+        answer.maxShards = $.maxShards;
+        answer.context = IFlow($.flow).makeContextWithResult();
 
-        uint subtaskIdx = uint(keccak256(abi.encode(answer.context.digest, minerId))) % nSubtasks;
+        uint subtaskIdx = uint(keccak256(abi.encode(answer.context.digest, minerId))) % $.nSubtasks;
         uint subtaskMineStart = answer.context.mineStart + subtaskIdx;
-        if (block.number <= subtaskMineStart || block.number - subtaskMineStart > targetMineBlocks) {
+        if (block.number <= subtaskMineStart || block.number - subtaskMineStart > $.targetMineBlocks) {
             return answer;
         }
 
         answer.subtaskDigest = keccak256(abi.encode(answer.context.digest, blockhash(subtaskMineStart)));
 
-        if (answer.context.epoch > lastMinedEpoch) {
+        if (answer.context.epoch > $.lastMinedEpoch) {
             _updateMineEpochWhenNeeded(answer.context);
         }
 
-        if (currentSubmissions < targetSubmissions * 2) {
-            answer.poraTarget = poraTarget;
+        if ($.currentSubmissions < $.targetSubmissions * 2) {
+            answer.poraTarget = $.poraTarget;
         }
+    }
+    
+    function _setMiner(bytes32 minerId) internal {
+        PoraMineStorage storage $ = _getPoraMineStorage();
+        $.beneficiaries[minerId] = msg.sender;
+    }
+
+
+    function _setQuality(uint _targetQuality) internal {
+        PoraMineStorage storage $ = _getPoraMineStorage();
+        $.poraTarget = _targetQuality;
     }
 }
