@@ -7,13 +7,12 @@ import "../utils/ZgsSpec.sol";
 import "../utils/Exponent.sol";
 import "../utils/OnlySender.sol";
 import "../utils/TimeInterval.sol";
-import "../utils/ZgInitializable.sol";
 import "../token/ISafeERC20.sol";
 import "../interfaces/IReward.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract Cashier is OnlySender, TimeInterval, ZgInitializable {
+contract Cashier is OnlySender, TimeInterval, Initializable {
     // reserved storage slots for base contract upgrade in future
     uint[50] private __gap;
 
@@ -33,7 +32,7 @@ contract Cashier is OnlySender, TimeInterval, ZgInitializable {
     address public mine;
     address public stake;
 
-    function _initialize(
+    function __Cashier_init(
         address flow_,
         address mine_,
         address reward_,
@@ -55,8 +54,8 @@ contract Cashier is OnlySender, TimeInterval, ZgInitializable {
         address reward_,
         address uploadToken_,
         address stake_
-    ) public payable virtual onlyInitializeOnce {
-        _initialize(flow_, mine_, reward_, uploadToken_, stake_);
+    ) public payable virtual initializer {
+        __Cashier_init(flow_, mine_, reward_, uploadToken_, stake_);
     }
 
     function refreshGauge() public {

@@ -17,35 +17,27 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const mineAddress = await poraMine_.getAddress();
 
     console.log(`initializing pora mine..`);
-    if (!(await poraMine_.initialized())) {
-        await (await poraMine_.initialize(config.mineConfigs.initDifficulty, flowAddress, rewardAddress)).wait();
-    }
+    await (await poraMine_.initialize(config.mineConfigs.initDifficulty, flowAddress, rewardAddress)).wait();
 
     console.log(`initializing fixed price market..`);
-    if (!(await fixedPriceMarket_.initialized())) {
-        // Use `lifetimeMonth * MONTH_ZGS_UNITS_PER_SECTOR` as `pricePerSector`
-        await (
-            await fixedPriceMarket_.initialize(
-                (BigInt(config.lifetimeMonth * config.unitPrice) * 256n * 1_000_000_000_000_000_000n) /
-                    1024n /
-                    1024n /
-                    1024n /
-                    12n,
-                flowAddress,
-                rewardAddress
-            )
-        ).wait();
-    }
+    // Use `lifetimeMonth * MONTH_ZGS_UNITS_PER_SECTOR` as `pricePerSector`
+    await (
+        await fixedPriceMarket_.initialize(
+            (BigInt(config.lifetimeMonth * config.unitPrice) * 256n * 1_000_000_000_000_000_000n) /
+                1024n /
+                1024n /
+                1024n /
+                12n,
+            flowAddress,
+            rewardAddress
+        )
+    ).wait();
 
     console.log(`initializing chunk linear reward..`);
-    if (!(await chunkLinearReward_.initialized())) {
-        await (await chunkLinearReward_.initialize(marketAddress, mineAddress)).wait();
-    }
+    await (await chunkLinearReward_.initialize(marketAddress, mineAddress)).wait();
 
     console.log(`initializing fixed price flow..`);
-    if (!(await fixedPriceFlow_.initialized())) {
-        await (await fixedPriceFlow_.initialize(marketAddress, config.blocksPerEpoch)).wait();
-    }
+    await (await fixedPriceFlow_.initialize(marketAddress, config.blocksPerEpoch)).wait();
     console.log(`all contract initialized.`);
 };
 

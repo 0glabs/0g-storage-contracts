@@ -19,8 +19,8 @@ contract CashierTest is Cashier {
         address reward_,
         address uploadToken_,
         address stake_
-    ) public payable override onlyInitializeOnce {
-        Cashier._initialize(flow_, mine_, reward_, uploadToken_, stake_);
+    ) public payable override initializer {
+        __Cashier_init(flow_, mine_, reward_, uploadToken_, stake_);
         flowLength = 1;
     }
 

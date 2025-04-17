@@ -9,11 +9,11 @@ contract PoraMineTest is PoraMine {
     constructor(uint settings) PoraMine(settings | 0x4) {}
 
     function setMiner(bytes32 minerId) external {
-        beneficiaries[minerId] = msg.sender;
+        _setMiner(minerId);
     }
 
     function setQuality(uint _targetQuality) external {
-        poraTarget = _targetQuality;
+        _setQuality(_targetQuality);
     }
 
     function unseal(

@@ -4,11 +4,11 @@ pragma solidity >=0.8.0 <0.9.0;
 import "../interfaces/IReward.sol";
 import "../utils/ZgsSpec.sol";
 import "../utils/MarketSpec.sol";
-import "../utils/ZgInitializable.sol";
 
 import "@openzeppelin/contracts/utils/Context.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract OnePoolReward is IReward, Context, ZgInitializable {
+contract OnePoolReward is IReward, Context, Initializable {
     // immutables
     uint public immutable lifetimeInSeconds;
 
@@ -45,7 +45,7 @@ contract OnePoolReward is IReward, Context, ZgInitializable {
         lastUpdateTimestamp = block.timestamp;
     }
 
-    function initialize(address market_, address mine_) public onlyInitializeOnce {
+    function initialize(address market_, address mine_) public initializer {
         _initialize(market_, mine_);
     }
 
