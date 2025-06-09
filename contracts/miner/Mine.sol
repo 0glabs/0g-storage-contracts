@@ -180,6 +180,7 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
         // Step 4: configurable check
         bytes32[UNITS_PER_SEAL] memory unsealedData;
         if (sealDataEnabled) {
+            require(answer.sealedContextDigest != EMPTY_HASH, "Seal digest cannot be empty");
             unsealedData = MineLib.unseal(answer);
         } else {
             unsealedData = answer.sealedData;
