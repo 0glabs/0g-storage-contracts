@@ -6,6 +6,7 @@ pragma solidity ^0.8.0;
 import "./FlowTreeLib.sol";
 import "../utils/DigestHistory.sol";
 import "../utils/ZgsSpec.sol";
+import "../utils/BlockHash.sol";
 import "../interfaces/IDigestHistory.sol";
 import "../interfaces/IMarket.sol";
 import "../interfaces/IReward.sol";
@@ -260,11 +261,11 @@ contract Flow is IFlow, PauseControl {
         bytes32 contextDigest;
         bytes32 blockDigest;
 
-        if (nextEpochStart + 256 < block.number) {
+        if (nextEpochStart + 8191 < block.number) {
             contextDigest = EMPTY_HASH;
             blockDigest = EMPTY_HASH;
         } else {
-            blockDigest = blockhash(nextEpochStart);
+            blockDigest = Blockhash.blockHash(nextEpochStart);
             contextDigest = keccak256(abi.encode(blockDigest, currentRoot, $.tree.currentLength));
 
             uint128 startPosition = uint128($.epochStartPosition);
