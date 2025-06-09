@@ -16,6 +16,8 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const marketAddress = await fixedPriceMarket_.getAddress();
     const mineAddress = await poraMine_.getAddress();
 
+    const blocksPerEpoch = BigInt(process.env.BLOCKS_PER_EPOCH!);
+
     console.log(`initializing pora mine..`);
     await (await poraMine_.initialize(config.mineConfigs.initDifficulty, flowAddress, rewardAddress)).wait();
 
@@ -24,10 +26,10 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await (
         await fixedPriceMarket_.initialize(
             (BigInt(config.lifetimeMonth * config.unitPrice) * 256n * 1_000_000_000_000_000_000n) /
-                1024n /
-                1024n /
-                1024n /
-                12n,
+            1024n /
+            1024n /
+            1024n /
+            12n,
             flowAddress,
             rewardAddress
         )
@@ -37,7 +39,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await (await chunkLinearReward_.initialize(marketAddress, mineAddress)).wait();
 
     console.log(`initializing fixed price flow..`);
-    await (await fixedPriceFlow_.initialize(marketAddress, config.blocksPerEpoch)).wait();
+    await (await fixedPriceFlow_.initialize(marketAddress, blocksPerEpoch)).wait();
     console.log(`all contract initialized.`);
 };
 

@@ -4,6 +4,8 @@ import { CONTRACTS, getTypedContract } from "../utils/utils";
 task("mine:show", "show contract params").setAction(async (_, hre) => {
     const mine = await getTypedContract(hre, CONTRACTS.PoraMine);
     console.log(await mine.targetSubmissions());
+    console.log(await mine.minDifficulty());
+    console.log(await mine.poraTarget());
     console.log(await mine.canSubmit.staticCall());
 });
 
