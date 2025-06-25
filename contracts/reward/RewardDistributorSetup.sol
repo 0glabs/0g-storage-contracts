@@ -47,7 +47,7 @@ contract RewardDistributorSetup is Ownable {
         _;
     }
 
-    constructor(address _rewardToken, address _operator) {
+    constructor(address _rewardToken, address _operator) Ownable(msg.sender) {
         require(_rewardToken != address(0), "Invalid token");
         require(_operator != address(0), "Invalid operator");
         rewardToken = IERC20(_rewardToken);
