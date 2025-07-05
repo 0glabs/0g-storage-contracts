@@ -224,27 +224,27 @@ async function printRewardPool(reward: ChunkLinearReward, chunks: number) {
         reward.firstRewardableChunk(),
     ]);
 
-    console.log("Note: 1000 mZG = 1 ZG");
+    console.log("Note: All amounts are in neurons (1 ZGS = 10^18 neurons)");
     console.log(`release days: ${releaseSeconds / 86400n}`);
-    console.log(`base reward: ${baseReward / base} mZG`);
-    console.log(`total base reward: ${totalBaseReward / base} mZG`);
+    console.log(`base reward: ${ethers.formatEther(baseReward)} ZGS`);
+    console.log(`total base reward: ${ethers.formatEther(totalBaseReward)} ZGS`);
     console.log(`first rewardable chunk: ${firstRewardableChunk}`);
 
     for (let i = firstRewardableChunk; i < chunks; i++) {
         const res = await reward.rewards(i);
         console.log(
-            `[Pool ${i}]\tlocked: ${res.lockedReward / base} mZG,\tclaimable: ${
-                res.claimableReward / base
-            } mZG,\tdistributed: ${res.distributedReward / base} mZG,\tstart time: ${toDate(
+            `[Pool ${i}]\tlocked: ${ethers.formatEther(res.lockedReward)} ZGS,\tclaimable: ${
+                ethers.formatEther(res.claimableReward)
+            } ZGS,\tdistributed: ${ethers.formatEther(res.distributedReward)} ZGS,\tstart time: ${toDate(
                 res.startTime
             )},\tlast update: ${toDate(res.lastUpdate)}`
         );
     }
     const res = await reward.rewards(chunks);
     console.log(
-        `[Pool next]\treward: ${res.lockedReward / base},\tclaimable: ${res.claimableReward / base},\tdistributed: ${
-            res.distributedReward / base
-        },\tstart time: ${toDate(res.startTime)},\tlast update: ${toDate(res.lastUpdate)}`
+        `[Pool next]\treward: ${ethers.formatEther(res.lockedReward)} ZGS,\tclaimable: ${ethers.formatEther(res.claimableReward)} ZGS,\tdistributed: ${
+            ethers.formatEther(res.distributedReward)
+        } ZGS,\tstart time: ${toDate(res.startTime)},\tlast update: ${toDate(res.lastUpdate)}`
     );
     console.log("<<<<<<<< Done <<<<<<<<<<\n");
 }

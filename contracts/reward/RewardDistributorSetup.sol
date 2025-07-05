@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
@@ -10,11 +10,20 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @dev Merkle Tree based reward distribution contract. The operator can update the Merkle root daily (off-chain computed),
  *      and users can claim their rewards by providing a valid Merkle proof. Claimed amounts are tracked to prevent double-claiming.
  *      Supports both single claim and batch claim for gas optimization.
+ *      
+ *      All amounts are in neurons (1 ZGS = 10^18 neurons)
+ *
+ *      【Replay Attack Prevention Mechanism】
+ *      - When users claim rewards, totalReward must be the cumulative reward total (increasing, non-decreasing).
+ *      - The contract tracks users' cumulative claimed rewards through claimed[msg.sender].
+ *      - The actual reward distributed is claimable = totalReward - claimed[msg.sender].
+ *      - Even if the proof is replayed, the chain will find that claimed[msg.sender] is already equal to or greater than totalReward, making claimable=0, preventing duplicate reward distribution.
+ *      - As long as totalReward is cumulative, the chain naturally prevents replay attacks.
  */
 contract RewardDistributorSetup is Ownable {
     using MerkleProof for bytes32[];
 
-    // The ERC20 token used for rewards
+    // The ERC20 token used for rewards (ZGS token)
     IERC20 public immutable rewardToken;
 
     // The operator who can update the Merkle root
@@ -24,12 +33,12 @@ contract RewardDistributorSetup is Ownable {
     bytes32 public merkleRoot;
     uint256 public lastUpdateTimestamp;
 
-    // Mapping to track how much each user has claimed
+    // Mapping to track how much each user has claimed (in neurons)
     mapping(address => uint256) public claimed;
 
     // Batch claim data structure
     struct BatchClaimData {
-        uint256 totalReward;
+        uint256 totalReward; // Amount in neurons
         bytes32[] proof;
     }
 
@@ -67,8 +76,9 @@ contract RewardDistributorSetup is Ownable {
 
     /**
      * @dev Claim rewards for the user. The user must provide a valid Merkle proof.
-     * @param totalReward The total reward allocated to the user (from the off-chain calculation).
+     * @param totalReward The total reward allocated to the user in neurons (from the off-chain calculation, must be cumulative and non-decreasing).
      * @param proof The Merkle proof.
+     *
      */
     function claim(uint256 totalReward, bytes32[] calldata proof) external {
         require(merkleRoot != bytes32(0), "No rewards available");
@@ -93,7 +103,12 @@ contract RewardDistributorSetup is Ownable {
     /**
      * @dev Batch claim rewards for multiple reward periods. This allows users to claim all their historical rewards
      *      in a single transaction, significantly reducing gas costs.
-     * @param batchClaims Array of batch claim data containing totalReward and proof for each period.
+     * @param batchClaims Array of batch claim data containing totalReward (in neurons) and proof for each period.
+     *
+     * Replay attack prevention:
+     * - Each batchClaim's totalReward must be cumulative rewards.
+     * - The contract tracks cumulative claimed amounts through claimed[msg.sender].
+     * - When replaying proof, claimable=0, preventing duplicate reward distribution.
      */
     function batchClaim(BatchClaimData[] calldata batchClaims) external {
         require(merkleRoot != bytes32(0), "No rewards available");
@@ -138,7 +153,7 @@ contract RewardDistributorSetup is Ownable {
     /**
      * @dev Emergency withdraw tokens. Only the owner can call this.
      * @param to The recipient address.
-     * @param amount The amount to withdraw.
+     * @param amount The amount to withdraw in neurons.
      */
     function emergencyWithdraw(address to, uint256 amount) external onlyOwner {
         require(to != address(0), "Invalid address");
