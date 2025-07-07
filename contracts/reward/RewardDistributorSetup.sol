@@ -60,11 +60,11 @@ contract RewardDistributorSetup is Ownable {
     function updateRewards(uint256 _epoch, bytes32 _merkleRoot) external onlyOperator {
         require(_merkleRoot != bytes32(0), "Invalid root");
         require(_epoch > currentEpoch, "Invalid epoch");
-        
+
         currentEpoch = _epoch;
         merkleRoot = _merkleRoot;
         lastUpdateTimestamp = block.timestamp;
-        
+
         emit MerkleRootUpdated(_epoch, _merkleRoot, block.timestamp);
     }
 
@@ -111,4 +111,4 @@ contract RewardDistributorSetup is Ownable {
         require(to != address(0), "Invalid address");
         require(rewardToken.transfer(to, amount), "Withdraw failed");
     }
-} 
+}
