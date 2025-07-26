@@ -257,7 +257,7 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
         PoraMineStorage storage $ = _getPoraMineStorage();
         require(context.epoch >= $.lastMinedEpoch, "Internal error: epoch number decrease");
 
-        if (context.epoch > $.lastMinedEpoch && $.lastMinedEpoch > 0) {
+        if (context.epoch > $.lastMinedEpoch && $.lastMinedEpoch > 0 && $.currentSubmissions > 0) {
             _adjustDifficultyOnNewEpoch();
             $.currentSubmissions = 0;
             $.targetSubmissions = $.targetSubmissionsNextEpoch;
