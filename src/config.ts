@@ -7,6 +7,16 @@ export interface MineConfigs {
     settings: number;
     // The initial difficulty for PoRA mining.
     initDifficulty: number;
+    // Mining window duration for each subtask in blocks
+    targetMineBlocks: number;
+    // Target number of submissions per epoch
+    targetSubmissions: number;
+    // Maximum shards per mining submission
+    maxShards: number;
+    // Number of subtasks per epoch
+    nSubtasks: number;
+    // Interval between subtask start times in blocks
+    subtaskInterval: number;
 }
 
 export interface NetworkConfigs {
@@ -25,6 +35,11 @@ export const DefaultConfig: NetworkConfigs = {
     mineConfigs: {
         settings: 0,
         initDifficulty: 30000,
+        targetMineBlocks: 100,
+        targetSubmissions: 10,
+        maxShards: 32,
+        nSubtasks: 1,
+        subtaskInterval: 100,
     },
     blocksPerEpoch: 1000000000,
     firstBlock: 0,

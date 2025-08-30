@@ -56,7 +56,6 @@ type MineContextStruct = {
 
 describe("Miner", function () {
     let mockFlow: MockContract;
-    let mockCashier: MockContract;
     let mockReward: MockContract;
     let mineContract: PoraMineTest;
     let minerId: Buffer;
@@ -66,18 +65,29 @@ describe("Miner", function () {
         const [owner] = await ethers.getSigners();
 
         mockFlow = await deployMock(owner, "Flow");
-        mockCashier = await deployMock(owner, "Cashier");
         mockReward = await deployMock(owner, "ChunkDecayReward");
 
         await mockReward.mock.claimMineReward.returns();
 
         const mineABI = await ethers.getContractFactory("PoraMineTest");
         mineContract = await mineABI.deploy(0);
-        await mineContract.initialize(1, await mockFlow.getAddress(), await mockReward.getAddress());
+        await mineContract.initialize(
+            await mockFlow.getAddress(),
+            await mockReward.getAddress(),
+            {
+                difficulty: 1,
+                targetMineBlocks: 100,
+                targetSubmissions: 10,
+                maxShards: 32,
+                nSubtasks: 1,
+                subtaskInterval: 100
+            }
+        );
         await mineContract.setDifficultyAdjustRatio(1);
 
         minerId = await keccak256("minerId");
         await mineContract.setMiner(minerId);
+        snapshot = await new Snapshot().snapshot();
 
         snapshot = await new Snapshot().snapshot();
     });

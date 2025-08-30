@@ -24,6 +24,16 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
 
     bytes32 public constant PARAMS_ADMIN_ROLE = keccak256("PARAMS_ADMIN_ROLE");
 
+    // Initialization parameters struct
+    struct MineInitParams {
+        uint difficulty;
+        uint targetMineBlocks;
+        uint targetSubmissions;
+        uint64 maxShards;
+        uint nSubtasks;
+        uint subtaskInterval;
+    }
+
     // constants
     bytes32 private constant EMPTY_HASH = hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
 
@@ -55,6 +65,7 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
         // Updated configurable parameters
         uint minDifficulty;
         uint nSubtasks;
+        uint subtaskInterval;
         // Mappings
         mapping(bytes32 => bool) _submittedPora;
         mapping(bytes32 => address) beneficiaries;
@@ -80,24 +91,25 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
         fixedDifficulty = (settings & FIXED_DIFFICULTY != 0);
     }
 
-    function initialize(uint difficulty, address flow_, address reward_) public initializer {
+    function initialize(address flow_, address reward_, MineInitParams memory params) public initializer {
         PoraMineStorage storage $ = _getPoraMineStorage();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _grantRole(PARAMS_ADMIN_ROLE, _msgSender());
 
-        $.poraTarget = type(uint).max / difficulty;
+        $.poraTarget = type(uint).max / params.difficulty;
         if (fixedDifficulty) {
             $.poraTarget = type(uint).max;
         }
         $.flow = flow_;
         $.reward = reward_;
-        $.targetMineBlocks = 100;
-        $.targetSubmissions = 10;
-        $.targetSubmissionsNextEpoch = 10;
+        $.targetMineBlocks = params.targetMineBlocks;
+        $.targetSubmissions = params.targetSubmissions;
+        $.targetSubmissionsNextEpoch = params.targetSubmissions;
         $.difficultyAdjustRatio = 20;
-        $.maxShards = 32;
-        $.nSubtasks = 1;
+        $.maxShards = params.maxShards;
+        $.nSubtasks = params.nSubtasks;
+        $.subtaskInterval = params.subtaskInterval;
     }
 
     /*=== view functions ===*/
@@ -148,6 +160,10 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
 
     function nSubtasks() public view returns (uint) {
         return _getPoraMineStorage().nSubtasks;
+    }
+
+    function subtaskInterval() public view returns (uint) {
+        return _getPoraMineStorage().subtaskInterval;
     }
 
     function beneficiaries(bytes32 digest) public view returns (address) {
@@ -267,9 +283,11 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
     function getSubtaskDigest(MineContext memory context, bytes32 minerId) public view returns (bytes32) {
         PoraMineStorage storage $ = _getPoraMineStorage();
         uint subtaskIdx = uint(keccak256(abi.encode(context.digest, minerId))) % $.nSubtasks;
-        uint subtaskMineStart = context.mineStart + subtaskIdx;
+        uint subtaskMineStart = context.mineStart + (subtaskIdx * $.subtaskInterval);
+        uint subtaskMineEnd = subtaskMineStart + $.targetMineBlocks;
+
         require(block.number > subtaskMineStart, "Earlier than expected subtask start block.");
-        require(block.number - subtaskMineStart <= $.targetMineBlocks, "Mine deadline exceed");
+        require(block.number <= subtaskMineEnd, "Mine deadline exceed");
 
         return keccak256(abi.encode(context.digest, blockhash(subtaskMineStart)));
     }
@@ -295,7 +313,7 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
         uint scaledExpected;
         if ($.currentSubmissions > 0) {
             uint scaledTarget = $.poraTarget >> 16;
-            scaledExpected = Math.mulDiv(scaledTarget, $.targetMineBlocks, $.currentSubmissions);
+            scaledExpected = Math.mulDiv(scaledTarget, $.targetSubmissions, $.currentSubmissions);
         } else {
             scaledExpected = type(uint).max >> 16;
         }
@@ -386,8 +404,21 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
     function setNumSubtasks(uint nSubtasks_) external onlyRole(PARAMS_ADMIN_ROLE) {
         PoraMineStorage storage $ = _getPoraMineStorage();
         require(nSubtasks_ > 0, "Number of subtasks cannot be zero");
-        require(nSubtasks_ < IFlow($.flow).blocksPerEpoch(), "Number of subtasks must be less than blocks per epoch");
+        require(
+            (nSubtasks_ - 1) * $.subtaskInterval + 1 < IFlow($.flow).blocksPerEpoch(),
+            "Number of subtasks must be less than blocks per epoch"
+        );
         $.nSubtasks = nSubtasks_;
+    }
+
+    function setSubtaskInterval(uint subtaskInterval_) external onlyRole(PARAMS_ADMIN_ROLE) {
+        PoraMineStorage storage $ = _getPoraMineStorage();
+        require(subtaskInterval_ > 0, "Subtask interval cannot be zero");
+        require(
+            ($.nSubtasks - 1) * subtaskInterval_ + 1 < IFlow($.flow).blocksPerEpoch(),
+            "Subtasks extend beyond blocks per epoch"
+        );
+        $.subtaskInterval = subtaskInterval_;
     }
 
     function canSubmit() external returns (bool) {
@@ -406,8 +437,10 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
         answer.context = IFlow($.flow).makeContextWithResult();
 
         uint subtaskIdx = uint(keccak256(abi.encode(answer.context.digest, minerId))) % $.nSubtasks;
-        uint subtaskMineStart = answer.context.mineStart + subtaskIdx;
-        if (block.number <= subtaskMineStart || block.number - subtaskMineStart > $.targetMineBlocks) {
+        uint subtaskMineStart = answer.context.mineStart + (subtaskIdx * $.subtaskInterval);
+        uint subtaskMineEnd = subtaskMineStart + $.targetMineBlocks;
+
+        if (block.number <= subtaskMineStart || block.number > subtaskMineEnd) {
             return answer;
         }
 
@@ -421,12 +454,11 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
             answer.poraTarget = $.poraTarget;
         }
     }
-    
+
     function _setMiner(bytes32 minerId) internal {
         PoraMineStorage storage $ = _getPoraMineStorage();
         $.beneficiaries[minerId] = msg.sender;
     }
-
 
     function _setQuality(uint _targetQuality) internal {
         PoraMineStorage storage $ = _getPoraMineStorage();
