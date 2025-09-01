@@ -65,7 +65,9 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
         // Updated configurable parameters
         uint minDifficulty;
         uint nSubtasks;
+        uint nSubtasksNextEpoch;
         uint subtaskInterval;
+        uint subtaskIntervalNextEpoch;
         // Mappings
         mapping(bytes32 => bool) _submittedPora;
         mapping(bytes32 => address) beneficiaries;
@@ -101,15 +103,18 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
         if (fixedDifficulty) {
             $.poraTarget = type(uint).max;
         }
+        $.difficultyAdjustRatio = 20;
         $.flow = flow_;
         $.reward = reward_;
         $.targetMineBlocks = params.targetMineBlocks;
-        $.targetSubmissions = params.targetSubmissions;
-        $.targetSubmissionsNextEpoch = params.targetSubmissions;
-        $.difficultyAdjustRatio = 20;
+        $.targetSubmissions = params.targetSubmissions;  
         $.maxShards = params.maxShards;
         $.nSubtasks = params.nSubtasks;
+        $.nSubtasksNextEpoch = params.nSubtasks;
+
+        $.targetSubmissionsNextEpoch = params.targetSubmissions;
         $.subtaskInterval = params.subtaskInterval;
+        $.subtaskIntervalNextEpoch = params.subtaskInterval;
     }
 
     /*=== view functions ===*/
@@ -162,8 +167,16 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
         return _getPoraMineStorage().nSubtasks;
     }
 
+    function nSubtasksNextEpoch() public view returns (uint) {
+        return _getPoraMineStorage().nSubtasksNextEpoch;
+    }
+
     function subtaskInterval() public view returns (uint) {
         return _getPoraMineStorage().subtaskInterval;
+    }
+
+    function subtaskIntervalNextEpoch() public view returns (uint) {
+        return _getPoraMineStorage().subtaskIntervalNextEpoch;
     }
 
     function beneficiaries(bytes32 digest) public view returns (address) {
@@ -277,6 +290,8 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
             _adjustDifficultyOnNewEpoch();
             $.currentSubmissions = 0;
             $.targetSubmissions = $.targetSubmissionsNextEpoch;
+            $.nSubtasks = $.nSubtasksNextEpoch;
+            $.subtaskInterval = $.subtaskIntervalNextEpoch;
         }
     }
 
@@ -405,20 +420,26 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
         PoraMineStorage storage $ = _getPoraMineStorage();
         require(nSubtasks_ > 0, "Number of subtasks cannot be zero");
         require(
-            (nSubtasks_ - 1) * $.subtaskInterval + 1 < IFlow($.flow).blocksPerEpoch(),
+            (nSubtasks_ - 1) * $.subtaskIntervalNextEpoch + $.targetMineBlocks + 1 < IFlow($.flow).blocksPerEpoch(),
             "Number of subtasks must be less than blocks per epoch"
         );
-        $.nSubtasks = nSubtasks_;
+        $.nSubtasksNextEpoch = nSubtasks_;
+        if ($.lastMinedEpoch == 0) {
+            $.nSubtasks = nSubtasks_;
+        }
     }
 
     function setSubtaskInterval(uint subtaskInterval_) external onlyRole(PARAMS_ADMIN_ROLE) {
         PoraMineStorage storage $ = _getPoraMineStorage();
         require(subtaskInterval_ > 0, "Subtask interval cannot be zero");
         require(
-            ($.nSubtasks - 1) * subtaskInterval_ + 1 < IFlow($.flow).blocksPerEpoch(),
-            "Subtasks extend beyond blocks per epoch"
+            ($.nSubtasksNextEpoch - 1) * subtaskInterval_ + $.targetMineBlocks + 1 < IFlow($.flow).blocksPerEpoch(),
+            "Number of subtask intervals must be less than blocks per epoch"
         );
-        $.subtaskInterval = subtaskInterval_;
+        $.subtaskIntervalNextEpoch = subtaskInterval_;
+        if ($.lastMinedEpoch == 0) {
+            $.subtaskInterval = subtaskInterval_;
+        }
     }
 
     function canSubmit() external returns (bool) {
