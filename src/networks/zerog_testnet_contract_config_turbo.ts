@@ -11,6 +11,9 @@ export const ZerogTestnetContractConfigsTurbo: NetworkConfigs = {
         nSubtasks: 4,
         subtaskInterval: 800, // non-overlap, (0, 750], (800, 1550],...
     },
+    chunkRewardConfigs: {
+        foundationAdmin: ZeroAddress, // TODO: Set actual foundation admin address
+    },
     blocksPerEpoch: 3750,
     firstBlock: 1,
     rootHistory: ZeroAddress,

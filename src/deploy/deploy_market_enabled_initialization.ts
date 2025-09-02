@@ -17,18 +17,16 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const mineAddress = await poraMine_.getAddress();
 
     console.log(`initializing pora mine..`);
-    await (await poraMine_.initialize(
-        flowAddress, 
-        rewardAddress,
-        {
+    await (
+        await poraMine_.initialize(flowAddress, rewardAddress, {
             difficulty: config.mineConfigs.initDifficulty,
             targetMineBlocks: config.mineConfigs.targetMineBlocks,
             targetSubmissions: config.mineConfigs.targetSubmissions,
             maxShards: config.mineConfigs.maxShards,
             nSubtasks: config.mineConfigs.nSubtasks,
-            subtaskInterval: config.mineConfigs.subtaskInterval
-        }
-    )).wait();
+            subtaskInterval: config.mineConfigs.subtaskInterval,
+        })
+    ).wait();
 
     console.log(`initializing fixed price market..`);
     // Use `lifetimeMonth * MONTH_ZGAS_UNITS_PER_SECTOR` as `pricePerSector`
@@ -45,7 +43,9 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     ).wait();
 
     console.log(`initializing chunk linear reward..`);
-    await (await chunkLinearReward_.initialize(marketAddress, mineAddress)).wait();
+    await (
+        await chunkLinearReward_.initialize(marketAddress, mineAddress, config.chunkRewardConfigs.foundationAdmin)
+    ).wait();
 
     console.log(`initializing fixed price flow..`);
     await (await fixedPriceFlow_.initialize(marketAddress, config.blocksPerEpoch)).wait();

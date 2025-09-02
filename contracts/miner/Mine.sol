@@ -36,7 +36,7 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
 
     // constants
     bytes32 private constant EMPTY_HASH = hex"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
-    
+
     // Special address for computeWorkerContext read-only calls
     address private constant COMPUTE_WORKER_CONTEXT_CALLER = address(0x000000000000000000000000000000000000000A);
 
@@ -110,7 +110,7 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
         $.flow = flow_;
         $.reward = reward_;
         $.targetMineBlocks = params.targetMineBlocks;
-        $.targetSubmissions = params.targetSubmissions;  
+        $.targetSubmissions = params.targetSubmissions;
         $.maxShards = params.maxShards;
         $.nSubtasks = params.nSubtasks;
         $.nSubtasksNextEpoch = params.nSubtasks;
@@ -458,7 +458,7 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
     function computeWorkerContext(bytes32 minerId) external returns (WorkerContext memory answer) {
         // Restrict access to special address for read-only calculations
         require(msg.sender == COMPUTE_WORKER_CONTEXT_CALLER, "Only authorized caller can compute worker context");
-        
+
         PoraMineStorage storage $ = _getPoraMineStorage();
         require(minerId != bytes32(0), "MinerId cannot be zero");
         address beneficiary = $.beneficiaries[minerId];
