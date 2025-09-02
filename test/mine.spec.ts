@@ -65,7 +65,7 @@ describe("Miner", function () {
         const [owner] = await ethers.getSigners();
 
         mockFlow = await deployMock(owner, "Flow");
-        mockReward = await deployMock(owner, "ChunkDecayReward");
+        mockReward = await deployMock(owner, "ChunkLinearReward");
 
         await mockReward.mock.claimMineReward.returns();
 
