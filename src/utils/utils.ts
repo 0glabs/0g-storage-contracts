@@ -44,7 +44,6 @@ export const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000
 export const PAUSER_ROLE = ethers.id("PAUSER_ROLE");
 
 export const CONTRACTS = {
-    Cashier: new ContractMeta(Factories.Cashier__factory),
     FixedPriceFlow: new ContractMeta(Factories.FixedPriceFlow__factory),
     Flow: new ContractMeta(Factories.Flow__factory),
     FixedPrice: new ContractMeta(Factories.FixedPrice__factory),
@@ -56,7 +55,6 @@ export const CONTRACTS = {
     Blake2bTest: new ContractMeta(Factories.Blake2bTest__factory),
     ChunkDecayReward: new ContractMeta(Factories.ChunkDecayReward__factory),
     ChunkLinearReward: new ContractMeta(Factories.ChunkLinearReward__factory),
-    CashierTest: new ContractMeta(Factories.CashierTest__factory),
 } as const;
 
 type GetContractTypeFromContractMeta<F> = F extends ContractMeta<infer C> ? C : never;

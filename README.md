@@ -15,7 +15,6 @@ Upon receiving a submission from a user, the Flow module notifies the Market con
 It is important to note that the payment of fees and the submission of data are independent steps. The Flow does not automatically pay the Market when submitting data. This design allows for more flexible Market logic, such as multi-currency payments. Some contracts, like FixedPriceFlow, merge these two steps into a single transaction.
 
 Implementations of the Market include:
-- **Cashier**: An early design with extensive features, may not be suitable for current systems.
 - **FixedPrice**: Charges a fixed price for submissions. Users can voluntarily pay a tip to incentivize more miners for storage.
 
 ### Reward
