@@ -40,11 +40,11 @@ abstract contract ChunkRewardBase is IReward, PullPayment, AccessControlEnumerab
         }
     }
 
-    function initialize(address market_, address mine_) public initializer {
+    function initialize(address market_, address mine_, address foundationAdmin) public initializer {
         ChunkRewardBaseStorage storage $ = _getChunkRewardBaseStorage();
-
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _grantRole(PARAMS_ADMIN_ROLE, _msgSender());
+        _grantRole(DEFAULT_ADMIN_ROLE, foundationAdmin);
+        _grantRole(PARAMS_ADMIN_ROLE, foundationAdmin);
 
         $.market = market_;
         $.mine = mine_;
