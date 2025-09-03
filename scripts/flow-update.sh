@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 LOG_DIR="$PROJECT_DIR/logs"
 PID_FILE="$LOG_DIR/flow-daemon.pid"
+SCRIPT_PATH="$SCRIPT_DIR/$(basename "$0")"
 NETWORK="${FLOW_UPDATE_NETWORK:-zgTestnetTurbo}"
 
 # Create logs directory
@@ -127,7 +128,7 @@ start_daemon() {
     echo "Private Key: ${DEPLOYER_KEY:+✓ Set}${DEPLOYER_KEY:-⚠ Not set (using default)}"
     
     cd "$PROJECT_DIR"
-    nohup bash -c "FLOW_UPDATE_NETWORK='$NETWORK' DEPLOYER_KEY='$DEPLOYER_KEY' '$0' _daemon_loop" > "$daemon_log" 2>&1 &
+    nohup bash -c "FLOW_UPDATE_NETWORK='$NETWORK' DEPLOYER_KEY='$DEPLOYER_KEY' '$SCRIPT_PATH' _daemon_loop" > "$daemon_log" 2>&1 &
     echo $! > "$PID_FILE"
     
     sleep 2
@@ -240,6 +241,7 @@ case "${1:-help}" in
     debug)
         echo "=== Debug Information ==="
         echo "Script: $0"
+        echo "Script Path: $SCRIPT_PATH"
         echo "Project Dir: $PROJECT_DIR"
         echo "Network: $NETWORK"
         echo "PID File: $PID_FILE"
@@ -249,7 +251,7 @@ case "${1:-help}" in
         echo "  FLOW_UPDATE_NETWORK: ${FLOW_UPDATE_NETWORK:-Not set (using default)}"
         echo ""
         echo "=== Testing daemon loop (will run for 10 seconds) ==="
-        timeout 10 "$0" _daemon_loop || echo "Daemon loop test completed/failed"
+        timeout 10 "$SCRIPT_PATH" _daemon_loop || echo "Daemon loop test completed/failed"
         ;;
     test-daemon)
         echo "Testing daemon loop directly (Ctrl+C to stop)..."
