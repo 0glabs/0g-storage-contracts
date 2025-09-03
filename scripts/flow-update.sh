@@ -59,6 +59,12 @@ should_run_today() {
 # Daemon loop function
 daemon_loop() {
     log "Flow update daemon started (PID: $$)"
+    log "Working directory: $(pwd)"
+    log "Network: $NETWORK"
+    log "Script path: $0"
+    
+    # Trap to handle graceful shutdown
+    trap 'log "Daemon shutting down..."; exit 0' SIGTERM SIGINT
     
     while true; do
         # Calculate next 2 AM
@@ -77,11 +83,24 @@ daemon_loop() {
         if [[ $sleep_seconds -gt 0 ]]; then
             log "Next update at: $(date -r $next_run '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -d "@$next_run" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)"
             log "Sleeping for $sleep_seconds seconds..."
-            sleep $sleep_seconds
+            
+            # Sleep in chunks to be responsive to signals
+            while [[ $sleep_seconds -gt 0 ]]; do
+                local chunk=$((sleep_seconds > 300 ? 300 : sleep_seconds))
+                sleep $chunk
+                sleep_seconds=$((sleep_seconds - chunk))
+                
+                # Recalculate in case time changed
+                current_time=$(date +%s)
+                if [[ $current_time -ge $next_run ]]; then
+                    break
+                fi
+            done
         fi
         
         # Run update if we should
         if should_run_today; then
+            log "Running scheduled update..."
             run_update
         else
             log "Already ran today, skipping..."
@@ -99,12 +118,39 @@ start_daemon() {
         return 1
     fi
     
-    echo "Starting flow update daemon..."
-    tmux new-session -d -s "$SESSION_NAME" -c "$PROJECT_DIR" \
-        "cd '$PROJECT_DIR' && FLOW_UPDATE_NETWORK='$NETWORK' DEPLOYER_KEY='$DEPLOYER_KEY' '$0' _daemon_loop"
+    # Check if tmux is available
+    if ! command -v tmux >/dev/null 2>&1; then
+        echo "ERROR: tmux is not installed. Please install tmux first."
+        echo "On macOS: brew install tmux"
+        echo "On Ubuntu: sudo apt-get install tmux"
+        return 1
+    fi
     
-    echo "Daemon started in tmux session '$SESSION_NAME'"
-    echo "Use '$0 attach' to view or '$0 logs' to see logs"
+    echo "Starting flow update daemon..."
+    echo "Creating tmux session: $SESSION_NAME"
+    echo "Working directory: $PROJECT_DIR"
+    echo "Network: $NETWORK"
+    echo "Script path: $0"
+    
+    # Create the tmux session with error checking
+    if tmux new-session -d -s "$SESSION_NAME" -c "$PROJECT_DIR" \
+        "cd '$PROJECT_DIR' && FLOW_UPDATE_NETWORK='$NETWORK' DEPLOYER_KEY='$DEPLOYER_KEY' '$0' _daemon_loop"; then
+        
+        # Verify session was created
+        sleep 1
+        if session_exists; then
+            echo "✓ Daemon started successfully in tmux session '$SESSION_NAME'"
+            echo "Use '$0 attach' to view or '$0 logs' to see logs"
+            return 0
+        else
+            echo "ERROR: Tmux session was created but disappeared. Check tmux logs."
+            return 1
+        fi
+    else
+        echo "ERROR: Failed to create tmux session"
+        echo "Try running manually: tmux new-session -d -s '$SESSION_NAME'"
+        return 1
+    fi
 }
 
 # Stop daemon
@@ -178,11 +224,24 @@ case "${1:-help}" in
     run)
         run_update
         ;;
+    debug)
+        echo "=== Debug Information ==="
+        echo "Script: $0"
+        echo "Project Dir: $PROJECT_DIR"
+        echo "Network: $NETWORK"
+        echo "Session Name: $SESSION_NAME"
+        echo "Tmux available: $(command -v tmux >/dev/null 2>&1 && echo "Yes" || echo "No")"
+        echo "Tmux sessions:"
+        tmux list-sessions 2>/dev/null || echo "No tmux sessions or tmux not available"
+        echo "Environment:"
+        echo "  DEPLOYER_KEY: ${DEPLOYER_KEY:+Set}${DEPLOYER_KEY:-Not set}"
+        echo "  FLOW_UPDATE_NETWORK: ${FLOW_UPDATE_NETWORK:-Not set (using default)}"
+        ;;
     _daemon_loop)
         daemon_loop
         ;;
     help|--help|-h)
-        echo "Usage: $0 {start|stop|restart|status|logs|attach|run}"
+        echo "Usage: $0 {start|stop|restart|status|logs|attach|run|debug}"
         echo ""
         echo "Commands:"
         echo "  start   - Start daemon (runs daily at 2 AM)"
@@ -192,6 +251,7 @@ case "${1:-help}" in
         echo "  logs    - View logs"
         echo "  attach  - Attach to tmux session"
         echo "  run     - Run update once manually"
+        echo "  debug   - Show debug information"
         echo ""
         echo "Environment variables:"
         echo "  DEPLOYER_KEY - Private key for gas payments (required)"
