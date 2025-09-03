@@ -59,14 +59,16 @@ should_run_today() {
 
 # Daemon loop function
 daemon_loop() {
-    echo "$(date): Starting flow update daemon..." | tee -a "$LOG_FILE"
+    local log_file="$LOG_DIR/flow-update-$(date +%Y%m%d).log"
+    
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting flow update daemon..." | tee -a "$log_file"
     
     # Run initial update immediately on startup
-    echo "$(date): Running initial flow update on startup..." | tee -a "$LOG_FILE"
-    if npx hardhat updateContext --network "$FLOW_UPDATE_NETWORK" 2>&1 | tee -a "$LOG_FILE"; then
-        echo "$(date): Initial flow update completed successfully" | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running initial flow update on startup..." | tee -a "$log_file"
+    if run_update; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Initial flow update completed successfully" | tee -a "$log_file"
     else
-        echo "$(date): Initial flow update failed" | tee -a "$LOG_FILE"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Initial flow update failed" | tee -a "$log_file"
     fi
     
     while true; do
@@ -76,13 +78,13 @@ daemon_loop() {
         
         # Check if it's 2 AM (02:00)
         if [ "$current_hour" = "02" ] && [ "$current_minute" = "00" ]; then
-            echo "$(date): Running daily flow update..." | tee -a "$LOG_FILE"
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running daily flow update..." | tee -a "$log_file"
             
-            # Run the hardhat task
-            if npx hardhat updateContext --network "$FLOW_UPDATE_NETWORK" 2>&1 | tee -a "$LOG_FILE"; then
-                echo "$(date): Flow update completed successfully" | tee -a "$LOG_FILE"
+            # Run the update using the same function
+            if run_update; then
+                echo "[$(date '+%Y-%m-%d %H:%M:%S')] Daily flow update completed successfully" | tee -a "$log_file"
             else
-                echo "$(date): Flow update failed" | tee -a "$LOG_FILE"
+                echo "[$(date '+%Y-%m-%d %H:%M:%S')] Daily flow update failed" | tee -a "$log_file"
             fi
             
             # Sleep for 60 seconds to avoid running multiple times in the same minute
@@ -121,35 +123,6 @@ start_daemon() {
     else
         echo "ERROR: Daemon failed to start. Check log: $daemon_log"
         rm -f "$PID_FILE"
-        return 1
-    fi
-}
-
-# Start daemon with nohup (fallback when tmux not available)
-start_daemon_nohup() {
-    local pid_file="$LOG_DIR/flow-daemon.pid"
-    local daemon_log="$LOG_DIR/daemon-$(date +%Y%m%d-%H%M%S).log"
-    
-    if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
-        echo "Daemon already running (PID: $(cat "$pid_file"))"
-        return 1
-    fi
-    
-    echo "Starting daemon with nohup..."
-    echo "Log file: $daemon_log"
-    
-    cd "$PROJECT_DIR"
-    nohup bash -c "FLOW_UPDATE_NETWORK='$NETWORK' DEPLOYER_KEY='$DEPLOYER_KEY' '$0' _daemon_loop" > "$daemon_log" 2>&1 &
-    echo $! > "$pid_file"
-    
-    sleep 2
-    if kill -0 "$(cat "$pid_file")" 2>/dev/null; then
-        echo "✓ Daemon started with PID: $(cat "$pid_file")"
-        echo "Use '$0 logs' to view logs or '$0 stop' to stop"
-        return 0
-    else
-        echo "ERROR: Daemon failed to start. Check log: $daemon_log"
-        rm -f "$pid_file"
         return 1
     fi
 }
