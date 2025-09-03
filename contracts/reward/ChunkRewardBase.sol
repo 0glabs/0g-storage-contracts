@@ -17,7 +17,10 @@ import {AccessControlEnumerableUpgradeable} from "@openzeppelin/contracts-upgrad
 abstract contract ChunkRewardBase is IReward, PullPayment, AccessControlEnumerableUpgradeable {
     using RewardLibrary for Reward;
 
-    bytes32 public constant PARAMS_ADMIN_ROLE = keccak256("PARAMS_ADMIN_ROLE");
+    modifier onlyFoundationAdmin() {
+        require(_msgSender() == _getChunkRewardBaseStorage().foundationAdmin, "Not foundation admin");
+        _;
+    }
 
     /// @custom:storage-location erc7201:0g.storage.ChunkRewardBase
     struct ChunkRewardBaseStorage {
@@ -28,6 +31,7 @@ abstract contract ChunkRewardBase is IReward, PullPayment, AccessControlEnumerab
         uint baseReward;
         uint serviceFeeRateBps;
         address treasury;
+        address foundationAdmin;
     }
 
     // keccak256(abi.encode(uint(keccak256("0g.storage.ChunkRewardBase")) - 1)) & ~bytes32(uint(0xff))
@@ -40,14 +44,13 @@ abstract contract ChunkRewardBase is IReward, PullPayment, AccessControlEnumerab
         }
     }
 
-    function initialize(address market_, address mine_) public initializer {
+    function initialize(address market_, address mine_, address foundationAdmin_) public initializer {
         ChunkRewardBaseStorage storage $ = _getChunkRewardBaseStorage();
-
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _grantRole(PARAMS_ADMIN_ROLE, _msgSender());
 
         $.market = market_;
         $.mine = mine_;
+        $.foundationAdmin = foundationAdmin_;
 
         // deploy pullpayment escrow
         __PullPayment_init();
@@ -146,17 +149,22 @@ abstract contract ChunkRewardBase is IReward, PullPayment, AccessControlEnumerab
         }
     }
 
-    function setBaseReward(uint baseReward_) external onlyRole(PARAMS_ADMIN_ROLE) {
+    function setBaseReward(uint baseReward_) external onlyFoundationAdmin {
         ChunkRewardBaseStorage storage $ = _getChunkRewardBaseStorage();
         $.baseReward = baseReward_;
     }
 
-    function setServiceFeeRate(uint bps) external onlyRole(PARAMS_ADMIN_ROLE) {
+    function setServiceFeeRate(uint bps) external onlyFoundationAdmin {
         ChunkRewardBaseStorage storage $ = _getChunkRewardBaseStorage();
         $.serviceFeeRateBps = bps;
     }
 
-    function setTreasury(address treasury_) external onlyRole(PARAMS_ADMIN_ROLE) {
+    function setFoundationAdmin(address foundationAdmin_) external onlyFoundationAdmin {
+        ChunkRewardBaseStorage storage $ = _getChunkRewardBaseStorage();
+        $.foundationAdmin = foundationAdmin_;
+    }
+
+    function setTreasury(address treasury_) external onlyFoundationAdmin {
         ChunkRewardBaseStorage storage $ = _getChunkRewardBaseStorage();
         $.treasury = treasury_;
     }
