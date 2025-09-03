@@ -6,7 +6,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 LOG_DIR="$PROJECT_DIR/logs"
-SESSION_NAME="flow-update-daemon"
+PID_FILE="$LOG_DIR/flow-daemon.pid"
 NETWORK="${FLOW_UPDATE_NETWORK:-zgTestnetTurbo}"
 
 # Create logs directory
@@ -18,9 +18,9 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$log_file"
 }
 
-# Check if tmux session exists
-session_exists() {
-    tmux has-session -t "$SESSION_NAME" 2>/dev/null
+# Check if daemon is running
+daemon_running() {
+    [[ -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null
 }
 
 # Run single update
@@ -113,55 +113,75 @@ daemon_loop() {
 
 # Start daemon
 start_daemon() {
-    if session_exists; then
-        echo "Daemon already running in tmux session '$SESSION_NAME'"
+    if daemon_running; then
+        echo "Daemon already running (PID: $(cat "$PID_FILE"))"
         return 1
     fi
     
-    # Check if tmux is available
-    if ! command -v tmux >/dev/null 2>&1; then
-        echo "ERROR: tmux is not installed. Please install tmux first."
-        echo "On macOS: brew install tmux"
-        echo "On Ubuntu: sudo apt-get install tmux"
-        return 1
-    fi
+    local daemon_log="$LOG_DIR/daemon-$(date +%Y%m%d-%H%M%S).log"
     
     echo "Starting flow update daemon..."
-    echo "Creating tmux session: $SESSION_NAME"
     echo "Working directory: $PROJECT_DIR"
     echo "Network: $NETWORK"
-    echo "Script path: $0"
+    echo "Log file: $daemon_log"
+    echo "Private Key: ${DEPLOYER_KEY:+✓ Set}${DEPLOYER_KEY:-⚠ Not set (using default)}"
     
-    # Create the tmux session with error checking
-    if tmux new-session -d -s "$SESSION_NAME" -c "$PROJECT_DIR" \
-        "cd '$PROJECT_DIR' && FLOW_UPDATE_NETWORK='$NETWORK' DEPLOYER_KEY='$DEPLOYER_KEY' '$0' _daemon_loop"; then
-        
-        # Verify session was created
-        sleep 1
-        if session_exists; then
-            echo "✓ Daemon started successfully in tmux session '$SESSION_NAME'"
-            echo "Use '$0 attach' to view or '$0 logs' to see logs"
-            return 0
-        else
-            echo "ERROR: Tmux session was created but disappeared. Check tmux logs."
-            return 1
-        fi
+    cd "$PROJECT_DIR"
+    nohup bash -c "FLOW_UPDATE_NETWORK='$NETWORK' DEPLOYER_KEY='$DEPLOYER_KEY' '$0' _daemon_loop" > "$daemon_log" 2>&1 &
+    echo $! > "$PID_FILE"
+    
+    sleep 2
+    if daemon_running; then
+        echo "✓ Daemon started successfully (PID: $(cat "$PID_FILE"))"
+        echo "Use '$0 logs' to view logs or '$0 stop' to stop"
+        return 0
     else
-        echo "ERROR: Failed to create tmux session"
-        echo "Try running manually: tmux new-session -d -s '$SESSION_NAME'"
+        echo "ERROR: Daemon failed to start. Check log: $daemon_log"
+        rm -f "$PID_FILE"
+        return 1
+    fi
+}
+
+# Start daemon with nohup (fallback when tmux not available)
+start_daemon_nohup() {
+    local pid_file="$LOG_DIR/flow-daemon.pid"
+    local daemon_log="$LOG_DIR/daemon-$(date +%Y%m%d-%H%M%S).log"
+    
+    if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
+        echo "Daemon already running (PID: $(cat "$pid_file"))"
+        return 1
+    fi
+    
+    echo "Starting daemon with nohup..."
+    echo "Log file: $daemon_log"
+    
+    cd "$PROJECT_DIR"
+    nohup bash -c "FLOW_UPDATE_NETWORK='$NETWORK' DEPLOYER_KEY='$DEPLOYER_KEY' '$0' _daemon_loop" > "$daemon_log" 2>&1 &
+    echo $! > "$pid_file"
+    
+    sleep 2
+    if kill -0 "$(cat "$pid_file")" 2>/dev/null; then
+        echo "✓ Daemon started with PID: $(cat "$pid_file")"
+        echo "Use '$0 logs' to view logs or '$0 stop' to stop"
+        return 0
+    else
+        echo "ERROR: Daemon failed to start. Check log: $daemon_log"
+        rm -f "$pid_file"
         return 1
     fi
 }
 
 # Stop daemon
 stop_daemon() {
-    if ! session_exists; then
+    if ! daemon_running; then
         echo "Daemon not running"
         return 1
     fi
     
-    tmux kill-session -t "$SESSION_NAME"
-    echo "Daemon stopped"
+    local pid=$(cat "$PID_FILE")
+    kill "$pid"
+    echo "Daemon stopped (PID: $pid)"
+    rm -f "$PID_FILE"
 }
 
 # Show status
@@ -170,8 +190,8 @@ show_status() {
     echo "  Network: $NETWORK"
     echo "  Private Key: ${DEPLOYER_KEY:+✓ Configured}${DEPLOYER_KEY:-⚠ Not set (using default)}"
     
-    if session_exists; then
-        echo "  Status: ✓ Running in tmux session '$SESSION_NAME'"
+    if daemon_running; then
+        echo "  Status: ✓ Running (PID: $(cat "$PID_FILE"))"
     else
         echo "  Status: ✗ Not running"
     fi
@@ -214,13 +234,6 @@ case "${1:-help}" in
     logs)
         view_logs
         ;;
-    attach)
-        if session_exists; then
-            tmux attach -t "$SESSION_NAME"
-        else
-            echo "Daemon not running. Use '$0 start' to start it."
-        fi
-        ;;
     run)
         run_update
         ;;
@@ -229,29 +242,34 @@ case "${1:-help}" in
         echo "Script: $0"
         echo "Project Dir: $PROJECT_DIR"
         echo "Network: $NETWORK"
-        echo "Session Name: $SESSION_NAME"
-        echo "Tmux available: $(command -v tmux >/dev/null 2>&1 && echo "Yes" || echo "No")"
-        echo "Tmux sessions:"
-        tmux list-sessions 2>/dev/null || echo "No tmux sessions or tmux not available"
+        echo "PID File: $PID_FILE"
+        echo "Daemon running: $(daemon_running && echo "Yes (PID: $(cat "$PID_FILE"))" || echo "No")"
         echo "Environment:"
         echo "  DEPLOYER_KEY: ${DEPLOYER_KEY:+Set}${DEPLOYER_KEY:-Not set}"
         echo "  FLOW_UPDATE_NETWORK: ${FLOW_UPDATE_NETWORK:-Not set (using default)}"
+        echo ""
+        echo "=== Testing daemon loop (will run for 10 seconds) ==="
+        timeout 10 "$0" _daemon_loop || echo "Daemon loop test completed/failed"
+        ;;
+    test-daemon)
+        echo "Testing daemon loop directly (Ctrl+C to stop)..."
+        daemon_loop
         ;;
     _daemon_loop)
         daemon_loop
         ;;
     help|--help|-h)
-        echo "Usage: $0 {start|stop|restart|status|logs|attach|run|debug}"
+        echo "Usage: $0 {start|stop|restart|status|logs|run|debug|test-daemon}"
         echo ""
         echo "Commands:"
-        echo "  start   - Start daemon (runs daily at 2 AM)"
-        echo "  stop    - Stop daemon"
-        echo "  restart - Restart daemon"
-        echo "  status  - Show status"
-        echo "  logs    - View logs"
-        echo "  attach  - Attach to tmux session"
-        echo "  run     - Run update once manually"
-        echo "  debug   - Show debug information"
+        echo "  start       - Start daemon (runs daily at 2 AM)"
+        echo "  stop        - Stop daemon"
+        echo "  restart     - Restart daemon"
+        echo "  status      - Show status"
+        echo "  logs        - View logs"
+        echo "  run         - Run update once manually"
+        echo "  debug       - Show debug information and test daemon"
+        echo "  test-daemon - Test daemon loop directly (for debugging)"
         echo ""
         echo "Environment variables:"
         echo "  DEPLOYER_KEY - Private key for gas payments (required)"
