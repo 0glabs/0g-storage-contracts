@@ -17,18 +17,14 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     console.log(`initializing pora mine test..`);
     await (
-        await poraMineTest_.initialize(
-            await flow_.getAddress(),
-            await dummyReward_.getAddress(),
-            {
-                difficulty: config.mineConfigs.initDifficulty,
-                targetMineBlocks: config.mineConfigs.targetMineBlocks,
-                targetSubmissions: config.mineConfigs.targetSubmissions,
-                maxShards: config.mineConfigs.maxShards,
-                nSubtasks: config.mineConfigs.nSubtasks,
-                subtaskInterval: config.mineConfigs.subtaskInterval
-            }
-        )
+        await poraMineTest_.initialize(await flow_.getAddress(), await dummyReward_.getAddress(), {
+            difficulty: config.mineConfigs.initDifficulty,
+            targetMineBlocks: config.mineConfigs.targetMineBlocks,
+            targetSubmissions: config.mineConfigs.targetSubmissions,
+            maxShards: config.mineConfigs.maxShards,
+            nSubtasks: config.mineConfigs.nSubtasks,
+            subtaskInterval: config.mineConfigs.subtaskInterval,
+        })
     ).wait();
 
     console.log(`initializing flow..`);

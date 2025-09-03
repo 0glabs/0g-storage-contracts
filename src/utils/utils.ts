@@ -49,7 +49,6 @@ export const CONTRACTS = {
     FixedPrice: new ContractMeta(Factories.FixedPrice__factory),
     PoraMine: new ContractMeta(Factories.PoraMine__factory),
     PoraMineTest: new ContractMeta(Factories.PoraMineTest__factory),
-    OnePoolReward: new ContractMeta(Factories.OnePoolReward__factory),
     DummyMarket: new ContractMeta(Factories.DummyMarket__factory),
     DummyReward: new ContractMeta(Factories.DummyReward__factory),
     Blake2bTest: new ContractMeta(Factories.Blake2bTest__factory),

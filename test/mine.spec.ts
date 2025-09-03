@@ -65,24 +65,20 @@ describe("Miner", function () {
         const [owner] = await ethers.getSigners();
 
         mockFlow = await deployMock(owner, "Flow");
-        mockReward = await deployMock(owner, "ChunkDecayReward");
+        mockReward = await deployMock(owner, "ChunkLinearReward");
 
         await mockReward.mock.claimMineReward.returns();
 
         const mineABI = await ethers.getContractFactory("PoraMineTest");
         mineContract = await mineABI.deploy(0);
-        await mineContract.initialize(
-            await mockFlow.getAddress(),
-            await mockReward.getAddress(),
-            {
-                difficulty: 1,
-                targetMineBlocks: 100,
-                targetSubmissions: 10,
-                maxShards: 32,
-                nSubtasks: 1,
-                subtaskInterval: 100
-            }
-        );
+        await mineContract.initialize(await mockFlow.getAddress(), await mockReward.getAddress(), {
+            difficulty: 1,
+            targetMineBlocks: 100,
+            targetSubmissions: 10,
+            maxShards: 32,
+            nSubtasks: 1,
+            subtaskInterval: 100,
+        });
         await mineContract.setDifficultyAdjustRatio(1);
 
         minerId = await keccak256("minerId");

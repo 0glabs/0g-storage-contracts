@@ -11,6 +11,9 @@ export const ZerogTestnetContractConfigsStandard: NetworkConfigs = {
         nSubtasks: 1,
         subtaskInterval: 100, // Sequential, no overlap
     },
+    chunkRewardConfigs: {
+        foundationAdmin: "0x711b0EcB072C27DE0e50c9944d7195A51B202522", // Foundation admin address
+    },
     blocksPerEpoch: 200,
     firstBlock: 594994,
     rootHistory: ZeroAddress,

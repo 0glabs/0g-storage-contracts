@@ -19,8 +19,14 @@ export interface MineConfigs {
     subtaskInterval: number;
 }
 
+export interface ChunkRewardConfigs {
+    // Foundation admin address for chunk reward management
+    foundationAdmin: string;
+}
+
 export interface NetworkConfigs {
     mineConfigs: MineConfigs;
+    chunkRewardConfigs: ChunkRewardConfigs;
     // This variable determines how often the `makeContext` function needs to be called within each mining cycle, known as an Epoch. If this function is not called over several epochs, it may cause issues. By default, this value is set very high, meaning that the contract will not generate mining tasks. For mining tests, adjust it to a suitable size (recommended block count per hour).
     blocksPerEpoch: number;
     firstBlock: number;
@@ -40,6 +46,9 @@ export const DefaultConfig: NetworkConfigs = {
         maxShards: 32,
         nSubtasks: 1,
         subtaskInterval: 100,
+    },
+    chunkRewardConfigs: {
+        foundationAdmin: ZeroAddress,
     },
     blocksPerEpoch: 1000000000,
     firstBlock: 0,
