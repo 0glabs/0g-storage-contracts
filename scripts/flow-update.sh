@@ -59,56 +59,38 @@ should_run_today() {
 
 # Daemon loop function
 daemon_loop() {
-    log "Flow update daemon started (PID: $$)"
-    log "Working directory: $(pwd)"
-    log "Network: $NETWORK"
-    log "Script path: $0"
+    echo "$(date): Starting flow update daemon..." | tee -a "$LOG_FILE"
     
-    # Trap to handle graceful shutdown
-    trap 'log "Daemon shutting down..."; exit 0' SIGTERM SIGINT
+    # Run initial update immediately on startup
+    echo "$(date): Running initial flow update on startup..." | tee -a "$LOG_FILE"
+    if npx hardhat updateContext --network "$FLOW_UPDATE_NETWORK" 2>&1 | tee -a "$LOG_FILE"; then
+        echo "$(date): Initial flow update completed successfully" | tee -a "$LOG_FILE"
+    else
+        echo "$(date): Initial flow update failed" | tee -a "$LOG_FILE"
+    fi
     
     while true; do
-        # Calculate next 2 AM
-        local current_time=$(date +%s)
-        local today_2am=$(date -j -f "%Y-%m-%d %H:%M:%S" "$(date +%Y-%m-%d) 02:00:00" +%s 2>/dev/null || date -d "$(date +%Y-%m-%d) 02:00:00" +%s 2>/dev/null)
+        # Get current time
+        current_hour=$(date +%H)
+        current_minute=$(date +%M)
         
-        local next_run
-        if [[ $current_time -lt $today_2am ]]; then
-            next_run=$today_2am
-        else
-            next_run=$((today_2am + 86400))
-        fi
-        
-        local sleep_seconds=$((next_run - current_time))
-        
-        if [[ $sleep_seconds -gt 0 ]]; then
-            log "Next update at: $(date -r $next_run '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -d "@$next_run" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)"
-            log "Sleeping for $sleep_seconds seconds..."
+        # Check if it's 2 AM (02:00)
+        if [ "$current_hour" = "02" ] && [ "$current_minute" = "00" ]; then
+            echo "$(date): Running daily flow update..." | tee -a "$LOG_FILE"
             
-            # Sleep in chunks to be responsive to signals
-            while [[ $sleep_seconds -gt 0 ]]; do
-                local chunk=$((sleep_seconds > 300 ? 300 : sleep_seconds))
-                sleep $chunk
-                sleep_seconds=$((sleep_seconds - chunk))
-                
-                # Recalculate in case time changed
-                current_time=$(date +%s)
-                if [[ $current_time -ge $next_run ]]; then
-                    break
-                fi
-            done
-        fi
-        
-        # Run update if we should
-        if should_run_today; then
-            log "Running scheduled update..."
-            run_update
+            # Run the hardhat task
+            if npx hardhat updateContext --network "$FLOW_UPDATE_NETWORK" 2>&1 | tee -a "$LOG_FILE"; then
+                echo "$(date): Flow update completed successfully" | tee -a "$LOG_FILE"
+            else
+                echo "$(date): Flow update failed" | tee -a "$LOG_FILE"
+            fi
+            
+            # Sleep for 60 seconds to avoid running multiple times in the same minute
+            sleep 60
         else
-            log "Already ran today, skipping..."
+            # Sleep for 30 seconds before checking again
+            sleep 30
         fi
-        
-        # Wait a minute before next check
-        sleep 60
     done
 }
 
