@@ -19,12 +19,13 @@ task("reward:setBaseReward", "set extra base reward")
     });
 
 task("reward:beacon-owner", "check beacon contract owner")
-    .addParam("beacon", "beacon contract address", undefined, types.string, false)
-    .setAction(async (taskArgs: { beacon: string }, hre) => {
-        const beacon = await hre.ethers.getContractAt("UpgradeableBeacon", taskArgs.beacon);
+    .setAction(async (_taskArgs, hre) => {
+        const beaconContract = await hre.ethers.getContract("ChunkLinearRewardBeacon");
+        const beacon = beaconContract as UpgradeableBeacon;
+        const beaconAddress = await beacon.getAddress();
         
         const owner = await beacon.owner();
-        console.log(`Beacon contract: ${taskArgs.beacon}`);
+        console.log(`Beacon contract: ${beaconAddress}`);
         console.log(`Current owner: ${owner}`);
         
         const [signer] = await hre.ethers.getSigners();
@@ -34,11 +35,11 @@ task("reward:beacon-owner", "check beacon contract owner")
     });
 
 task("reward:transfer-beacon-ownership", "transfer beacon contract ownership")
-    .addParam("beacon", "beacon contract address", undefined, types.string, false)
     .addParam("newOwner", "new owner address", undefined, types.string, false)
     .addParam("execute", "execute the transfer", false, types.boolean, true)
-    .setAction(async (taskArgs: { beacon: string; newOwner: string; execute: boolean }, hre) => {
-        const beacon = await hre.ethers.getContractAt("UpgradeableBeacon", taskArgs.beacon);
+    .setAction(async (taskArgs: { newOwner: string; execute: boolean }, hre) => {
+        const beaconContract = await hre.ethers.getContract("ChunkLinearRewardBeacon");
+        const beacon = beaconContract as UpgradeableBeacon;
         
         const currentOwner = await beacon.owner();
         console.log(`Current owner: ${currentOwner}`);
