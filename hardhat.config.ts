@@ -1,4 +1,5 @@
 import "@nomicfoundation/hardhat-toolbox";
+import "@nomicfoundation/hardhat-verify";
 import "@openzeppelin/hardhat-upgrades";
 import "hardhat-abi-exporter";
 import "hardhat-deploy";
@@ -69,7 +70,7 @@ const config: HardhatUserConfig = {
         },
         zg: {
             ...userConfig,
-            url: "http://0.0.0.0:8545",
+            url: "https://evmrpc.0g.ai",
         },
         zgTestnetStandard: {
             ...userConfig,
@@ -77,8 +78,16 @@ const config: HardhatUserConfig = {
         },
         zgTestnetTurbo: {
             ...userConfig,
-            url: "https://evmrpc-testnet.0g.ai",
+            url: "https://evmrpc-testnet.0g.ai/",
         },
+        zgTurbo: {
+            ...userConfig,
+            url: "https://evmrpc.0g.ai",
+        },
+        zgStandard: {
+            ...userConfig,
+            url: "https://evmrpc.0g.ai",
+        }
     },
     namedAccounts: {
         deployer: 0,
@@ -86,10 +95,21 @@ const config: HardhatUserConfig = {
     mocha: {
         timeout: 2000000,
     },
-    verify: {
-        etherscan: {
-            apiKey: ETHERSCAN_API_KEY,
+    etherscan: {
+        apiKey: {
+            mainnet: ETHERSCAN_API_KEY || "",
+            zgTurbo: "no-api-key-needed"
         },
+        customChains: [
+            {
+                network: "zgTurbo",
+                chainId: 16661,
+                urls: {
+                    apiURL: "https://chainscan.0g.ai/open/api",
+                    browserURL: "https://chainscan.0g.ai"
+                }
+            }
+        ]
     },
     gasReporter: {
         currency: "Gwei",

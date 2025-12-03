@@ -86,6 +86,10 @@ abstract contract ChunkRewardBase is IReward, PullPayment, AccessControlEnumerab
         return _getChunkRewardBaseStorage().treasury;
     }
 
+    function foundationAdmin() public view returns (address) {
+        return _getChunkRewardBaseStorage().foundationAdmin;
+    }
+
     /*=== main ===*/
 
     function fillReward(uint beforeLength, uint chargedSectors) external payable {

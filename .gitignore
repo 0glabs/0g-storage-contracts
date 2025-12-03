@@ -1,6 +1,7 @@
 .pnp.*
 .yarn
 .yarnrc
+.DS_Store
 .openzeppelin
 out/
 cache/
@@ -18,3 +19,4 @@ coverage.json
 typechain-types
 abis
 yarn-error.log
+contract_addresses.txt

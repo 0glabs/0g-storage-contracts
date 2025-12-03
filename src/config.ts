@@ -2,6 +2,8 @@ import { ZeroAddress } from "ethers";
 import { ZerogContractConfigs } from "./networks/zerog_contract_config";
 import { ZerogTestnetContractConfigsStandard } from "./networks/zerog_testnet_contract_config_standard";
 import { ZerogTestnetContractConfigsTurbo } from "./networks/zerog_testnet_contract_config_turbo";
+import { ZerogMainnetContractConfigsTurbo } from "./networks/zerog_mainnet_contract_config_turbo";
+import { ZerogMainnetContractConfigsStandard } from "./networks/zerog_mainnet_contract_config_standard";
 
 export interface MineConfigs {
     settings: number;
@@ -62,6 +64,8 @@ export const GlobalConfig: { [key: string]: NetworkConfigs } = {
     zg: ZerogContractConfigs,
     zgTestnetStandard: ZerogTestnetContractConfigsStandard,
     zgTestnetTurbo: ZerogTestnetContractConfigsTurbo,
+    zgTurbo: ZerogMainnetContractConfigsTurbo,
+    zgStandard: ZerogMainnetContractConfigsStandard,
 };
 
 export function getConfig(network: string) {
