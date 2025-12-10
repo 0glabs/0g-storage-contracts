@@ -10,6 +10,7 @@ struct Submission {
     uint length;
     bytes tags;
     SubmissionNode[] nodes;
+    address submitter;
 }
 
 library SubmissionLibrary {

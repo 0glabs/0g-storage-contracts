@@ -200,27 +200,26 @@ contract Flow is IFlow, PauseControl {
 
     function submit(
         Submission memory submission
-    ) public payable whenNotPaused launched returns (uint index, bytes32, uint, uint) {
+    ) public payable whenNotPaused launched returns (uint index, bytes32 digest, uint256 startIndex, uint256 length) {
         FlowStorage storage $ = _getFlowStorage();
         require(submission.valid(), "Invalid submission");
 
-        uint length = submission.size();
+        length = submission.size();
         _beforeSubmit(length);
 
         makeContext();
 
-        uint startIndex = _insertNodeList(submission);
+        startIndex = _insertNodeList(submission);
 
-        bytes32 digest = submission.digest();
+        digest = submission.digest();
         index = $.submissionIndex;
         $.submissionIndex += 1;
 
         $.tree.commitRoot();
         $.rootByTxSeq[index] = $.tree.root();
 
+        // Store submission before emit to reduce stack depth
         emit Submit(msg.sender, digest, index, startIndex, length, submission);
-
-        return (index, digest, startIndex, length);
     }
 
     function _insertNodeList(Submission memory submission) internal returns (uint startIndex) {
