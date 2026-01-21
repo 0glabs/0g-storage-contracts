@@ -21,7 +21,7 @@ library FlowTreeLib {
 
     function pad(FlowTree storage tree, Submission memory submission) internal {
         uint length = submission.size();
-        uint startIndex = nextAlign(tree.currentLength, submission.nodes[0].height);
+        uint startIndex = nextAlign(tree.currentLength, submission.data.nodes[0].height);
         if (
             startIndex % SECTORS_PER_SEGMENT != 0 &&
             startIndex / SECTORS_PER_SEGMENT != (startIndex + length - 1) / SECTORS_PER_SEGMENT

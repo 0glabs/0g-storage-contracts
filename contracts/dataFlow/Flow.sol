@@ -219,16 +219,17 @@ contract Flow is IFlow, PauseControl {
         $.rootByTxSeq[index] = $.tree.root();
 
         // Store submission before emit to reduce stack depth
-        emit Submit(msg.sender, digest, index, startIndex, length, submission);
+        emit Submit(submission.submitter, digest, index, startIndex, length, submission.data);
     }
 
     function _insertNodeList(Submission memory submission) internal returns (uint startIndex) {
         FlowStorage storage $ = _getFlowStorage();
         uint previousLength = $.tree.currentLength;
         $.tree.pad(submission);
-        for (uint i = 0; i < submission.nodes.length; i++) {
-            bytes32 nodeRoot = submission.nodes[i].root;
-            uint height = submission.nodes[i].height;
+        SubmissionData memory data = submission.data;
+        for (uint i = 0; i < data.nodes.length; i++) {
+            bytes32 nodeRoot = data.nodes[i].root;
+            uint height = data.nodes[i].height;
             uint nodeStartIndex = $.tree.insertNode(nodeRoot, height);
             if (i == 0) {
                 startIndex = nodeStartIndex;

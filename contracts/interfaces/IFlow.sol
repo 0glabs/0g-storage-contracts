@@ -30,7 +30,7 @@ interface IFlow {
         uint submissionIndex,
         uint startPos,
         uint length,
-        Submission submission
+        SubmissionData submission
     );
 
     event NewEpoch(

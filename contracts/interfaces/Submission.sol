@@ -6,10 +6,14 @@ struct SubmissionNode {
     uint height;
 }
 
-struct Submission {
+struct SubmissionData {
     uint length;
     bytes tags;
     SubmissionNode[] nodes;
+}
+
+struct Submission {
+    SubmissionData data;
     address submitter;
 }
 
@@ -19,49 +23,56 @@ library SubmissionLibrary {
     uint public constant MAX_LENGTH = 4;
 
     function size(Submission memory submission) internal pure returns (uint) {
+        SubmissionData memory data = submission.data;
         uint _size = 0;
-        for (uint i = 0; i < submission.nodes.length; i++) {
-            _size += 1 << submission.nodes[i].height;
+        for (uint i = 0; i < data.nodes.length; i++) {
+            _size += 1 << data.nodes[i].height;
         }
         return _size;
     }
 
     function valid(Submission memory submission) internal pure returns (bool) {
-        if (submission.nodes.length == 0) {
+        if (submission.submitter == address(0)) {
+            return false;
+        }
+
+        SubmissionData memory data = submission.data;
+
+        if (data.nodes.length == 0) {
             return false;
         }
 
         // Solidity 0.8 has overflow checking by default.
-        if (submission.nodes[0].height - submission.nodes[submission.nodes.length - 1].height >= MAX_LENGTH) {
+        if (data.nodes[0].height - data.nodes[data.nodes.length - 1].height >= MAX_LENGTH) {
             return false;
         }
 
-        if (submission.nodes[0].height >= MAX_DEPTH) {
+        if (data.nodes[0].height >= MAX_DEPTH) {
             return false;
         }
 
-        for (uint i = 0; i < submission.nodes.length - 1; i++) {
-            if (submission.nodes[i + 1].height >= submission.nodes[i].height) {
+        for (uint i = 0; i < data.nodes.length - 1; i++) {
+            if (data.nodes[i + 1].height >= data.nodes[i].height) {
                 return false;
             }
         }
 
         uint submissionCapacity = size(submission);
 
-        if (submission.length > submissionCapacity * ENTRY_SIZE) {
+        if (data.length > submissionCapacity * ENTRY_SIZE) {
             return false;
         }
 
         uint lastCapacity;
         if (submissionCapacity < (1 << MAX_LENGTH)) {
             lastCapacity = submissionCapacity - 1;
-        } else if (submission.nodes.length == 1) {
+        } else if (data.nodes.length == 1) {
             lastCapacity = submissionCapacity - (submissionCapacity >> MAX_LENGTH);
         } else {
-            lastCapacity = submissionCapacity - (1 << (submission.nodes[0].height - MAX_LENGTH + 1));
+            lastCapacity = submissionCapacity - (1 << (data.nodes[0].height - MAX_LENGTH + 1));
         }
 
-        if (submission.length <= lastCapacity * ENTRY_SIZE) {
+        if (data.length <= lastCapacity * ENTRY_SIZE) {
             return false;
         }
 
@@ -69,10 +80,11 @@ library SubmissionLibrary {
     }
 
     function digest(Submission memory submission) internal pure returns (bytes32) {
-        bytes32[] memory hashes = new bytes32[](submission.nodes.length);
+        SubmissionData memory data = submission.data;
+        bytes32[] memory hashes = new bytes32[](data.nodes.length);
 
-        for (uint i = 0; i < submission.nodes.length; i++) {
-            hashes[i] = submission.nodes[i].root;
+        for (uint i = 0; i < data.nodes.length; i++) {
+            hashes[i] = data.nodes[i].root;
         }
 
         return keccak256(abi.encodePacked(hashes));
