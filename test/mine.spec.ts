@@ -1,9 +1,8 @@
 import { MockContract } from "@clrfund/waffle-mock-contract";
 import { assert, expect } from "chai";
 import { AbiCoder } from "ethers";
-import { ethers, network } from "hardhat";
+import { ethers } from "hardhat";
 import { blake2b, keccak } from "hash-wasm";
-import { IDataType } from "hash-wasm/dist/lib/util";
 
 import { PoraMineTest } from "../typechain-types";
 
@@ -19,9 +18,27 @@ import {
     UNITS_PER_SEAL,
 } from "./utils/params";
 import { Snapshot } from "./utils/snapshot";
+import { toHex } from "./utils/bytes";
 
-async function keccak256(input: IDataType): Promise<Buffer> {
-    return hexToBuffer(await keccak(input, 256));
+async function keccak256(input: Buffer | Uint8Array | string): Promise<Buffer> {
+    const normalized = typeof input === "string" ? input : toHashInput(input);
+    return hexToBuffer(await keccak(normalized, 256));
+}
+
+function toHashInput(input: Buffer | Uint8Array): Uint8Array {
+    return new Uint8Array(input);
+}
+
+function concatBytes(...parts: Array<Buffer | Uint8Array>): Buffer {
+    return Buffer.concat(parts.map((part) => toHashInput(part)));
+}
+
+async function blake2b256(input: Buffer | Uint8Array | string): Promise<string> {
+    return blake2b(typeof input === "string" ? input : toHashInput(input));
+}
+
+function toHexArray(buffers: Buffer[]): `0x${string}`[] {
+    return buffers.map(toHex);
 }
 
 const abiCoder = new AbiCoder();
@@ -54,6 +71,27 @@ type MineContextStruct = {
     digest: Buffer;
 };
 
+function toContractAnswer(answer: PoraAnswerStruct) {
+    return {
+        ...answer,
+        contextDigest: toHex(answer.contextDigest),
+        nonce: toHex(answer.nonce),
+        minerId: toHex(answer.minerId),
+        sealedContextDigest: toHex(answer.sealedContextDigest),
+        sealedData: toHexArray(answer.sealedData),
+        merkleProof: toHexArray(answer.merkleProof),
+    };
+}
+
+function toContractContext(context: MineContextStruct) {
+    return {
+        ...context,
+        flowRoot: toHex(context.flowRoot),
+        blockDigest: toHex(context.blockDigest),
+        digest: toHex(context.digest),
+    };
+}
+
 describe("Miner", function () {
     let mockFlow: MockContract;
     let mockReward: MockContract;
@@ -82,7 +120,7 @@ describe("Miner", function () {
         await mineContract.setDifficultyAdjustRatio(1);
 
         minerId = await keccak256("minerId");
-        await mineContract.setMiner(minerId);
+        await mineContract.setMiner(toHex(minerId));
         snapshot = await new Snapshot().snapshot();
 
         snapshot = await new Snapshot().snapshot();
@@ -127,26 +165,26 @@ describe("Miner", function () {
                 )
             )
         );
-        const context: MineContextStruct = await makeContextDigest(tree);
-        const subtaskDigest: Buffer = await keccak256(
-            Buffer.concat([context.digest, subtaskBlockDigest || context.blockDigest])
+        const rawContext: MineContextStruct = await makeContextDigest(tree);
+        const rawSubtaskDigest: Buffer = await keccak256(
+            toHashInput(concatBytes(rawContext.digest, subtaskBlockDigest || rawContext.blockDigest))
         );
         const { scratchPad, chunkOffset, padSeed } = await makeScratchPad(
             minerId,
             nonce,
-            subtaskDigest,
+            rawSubtaskDigest,
             recallDigest,
             tree.length()
         );
         const realChunkOffset = (BigInt(chunkOffset) & range.shardMask) | range.shardId;
         const recallPosition = Number(realChunkOffset) * SECTORS_PER_LOAD + sealOffset * SECTORS_PER_SEAL;
-        const unsealedData = await tree.getUnsealedData(recallPosition);
+        const rawUnsealedData = await tree.getUnsealedData(recallPosition);
 
         const sealedContextDigest = await keccak256("44");
-        const sealedData = await seal(minerId, sealedContextDigest, unsealedData, recallPosition);
+        const sealedData = await seal(minerId, sealedContextDigest, rawUnsealedData, recallPosition);
 
-        const answer: PoraAnswerStruct = {
-            contextDigest: context.digest,
+        const rawAnswer: PoraAnswerStruct = {
+            contextDigest: rawContext.digest,
             nonce,
             minerId,
             range,
@@ -160,27 +198,43 @@ describe("Miner", function () {
         const mixedData: Buffer[] = mixData(sealedData, scratchPad, sealOffset);
 
         const quality = (
-            await blake2b(
-                Buffer.concat([
-                    numToU256(answer.sealOffset),
+            await blake2b256(
+                concatBytes(
+                    numToU256(rawAnswer.sealOffset),
                     padSeed,
                     Buffer.from(Array(32).fill(0)),
-                    Buffer.concat(mixedData),
-                ])
+                    concatBytes(...mixedData)
+                )
             )
         ).slice(0, 64);
 
-        return { context, answer, tree, scratchPad, unsealedData, quality, subtaskDigest };
+        const context = toContractContext(rawContext);
+        const answer = toContractAnswer(rawAnswer);
+        const unsealedData = toHexArray(rawUnsealedData);
+        const subtaskDigest = toHex(rawSubtaskDigest);
+
+        return {
+            answer,
+            tree,
+            scratchPad,
+            quality,
+            context,
+            unsealedData,
+            subtaskDigest,
+        };
     }
 
     it.skip("inspect gas cost (dev)", async () => {
-        const { answer, unsealedData, context } = await makeTestData({});
+        const { answer, context, unsealedData } = await makeTestData({});
 
         console.log("all: \t\t\t%d", await mineContract.testAll.estimateGas(answer, context.digest));
 
         console.log("unseal: \t\t%d", await mineContract.unseal.estimateGas(answer));
 
-        console.log("recover merkle: \t%d", await mineContract.recoverMerkleRoot.estimateGas(answer, unsealedData));
+        console.log(
+            "recover merkle: \t%d",
+            await mineContract.recoverMerkleRoot.estimateGas(answer, unsealedData)
+        );
 
         console.log("pora: \t\t\t%d", await mineContract.pora.estimateGas(answer, context.digest));
     });
@@ -188,7 +242,7 @@ describe("Miner", function () {
     it("check valid submission", async () => {
         const { context, answer, tree, unsealedData, quality, subtaskDigest } = await makeTestData({});
 
-        expect(await mineContract.unseal(answer)).to.deep.equal(unsealedData.map((x) => "0x" + x.toString("hex")));
+        expect(await mineContract.unseal(answer)).to.deep.equal(unsealedData);
 
         expect(hexToBuffer(await mineContract.recoverMerkleRoot(answer, unsealedData))).to.deep.equal(tree.root());
 
@@ -196,9 +250,7 @@ describe("Miner", function () {
             hexToBuffer(quality.slice(0, 64))
         );
 
-        await mockFlow.mock.getEpochRange
-            .withArgs(answer.sealedContextDigest)
-            .returns({ start: 0, end: tree.length() });
+        await mockFlow.mock.getEpochRange.withArgs(answer.sealedContextDigest).returns({ start: 0, end: tree.length() });
 
         await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
 
@@ -219,7 +271,7 @@ describe("Miner", function () {
                 break;
             }
 
-            expect(await mineContract.unseal(answer)).to.deep.equal(unsealedData.map((x) => "0x" + x.toString("hex")));
+            expect(await mineContract.unseal(answer)).to.deep.equal(unsealedData);
 
             expect(hexToBuffer(await mineContract.recoverMerkleRoot(answer, unsealedData))).to.deep.equal(tree.root());
 
@@ -227,9 +279,7 @@ describe("Miner", function () {
                 hexToBuffer(quality.slice(0, 64))
             );
 
-            await mockFlow.mock.getEpochRange
-                .withArgs(answer.sealedContextDigest)
-                .returns({ start: 0, end: tree.length() });
+            await mockFlow.mock.getEpochRange.withArgs(answer.sealedContextDigest).returns({ start: 0, end: tree.length() });
 
             await mockFlow.mock.makeContextWithResult.withArgs().returns(context);
 
@@ -403,10 +453,10 @@ async function seal(
     unsealedData: Buffer[],
     startPosition: number
 ): Promise<Buffer[]> {
-    let maskInput = Buffer.concat([minerId, contextDigest, numToU256(startPosition)]);
+    let maskInput = concatBytes(minerId, contextDigest, numToU256(startPosition));
     const sealedData = Array(128);
     for (let i = 0; i < 128; i++) {
-        sealedData[i] = xor(unsealedData[i], await keccak256(maskInput));
+        sealedData[i] = xor(unsealedData[i], await keccak256(toHashInput(maskInput)));
         maskInput = sealedData[i];
     }
     return sealedData;
@@ -448,17 +498,17 @@ async function makeContextDigest(tree: MockMerkle, epoch?: number, mineStart?: n
 }
 
 async function scratchPadItemHash(input: Buffer): Promise<Buffer> {
-    return hexToBuffer(await blake2b(input));
+    return hexToBuffer(await blake2b256(input));
 }
 
 async function scratchPadItemHashV2(input: Buffer): Promise<Buffer> {
-    const firstHash = await keccak256(input);
+    const firstHash = await keccak256(toHashInput(input));
 
-    const secondInput = Buffer.concat([firstHash, input.subarray(32)]);
+    const secondInput = concatBytes(firstHash, input.subarray(32));
 
-    const secondHash = await keccak256(secondInput);
+    const secondHash = await keccak256(toHashInput(secondInput));
 
-    return Buffer.concat([firstHash, secondHash]);
+    return concatBytes(firstHash, secondHash);
 }
 
 async function makeScratchPad(
@@ -469,7 +519,7 @@ async function makeScratchPad(
     length: number
 ): Promise<{ scratchPad: Buffer[]; chunkOffset: number; padSeed: Buffer }> {
     const answer = Array(BHASHES_PER_PAD);
-    let input = hexToBuffer(await blake2b(Buffer.concat([minerId, nonce, subtaskDigest, recallDigest])));
+    let input = hexToBuffer(await blake2b256(concatBytes(minerId, nonce, subtaskDigest, recallDigest)));
 
     const padSeed = input;
 

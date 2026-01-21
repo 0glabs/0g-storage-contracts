@@ -1,12 +1,8 @@
 import { expect } from "chai";
-import { Contract } from "ethers";
 import { ethers } from "hardhat";
 import { MerkleTreeTest } from "../typechain-types";
+import { toBuffer, toHex } from "./utils/bytes";
 import { genLeaf, genLeaves, MockMerkle } from "./utils/mockMerkleTree";
-
-function toBuffer(input: string): Buffer {
-    return Buffer.from(input.slice(2), "hex");
-}
 
 describe("Incremental merkle hash", function () {
     let merkle: MerkleTreeTest;
@@ -26,7 +22,7 @@ describe("Incremental merkle hash", function () {
         const allLeaves = await genLeaves(1);
         const tree = await new MockMerkle(allLeaves).build();
 
-        await merkle.insertNode(await genLeaf(1), 0);
+        await merkle.insertNode(toHex(await genLeaf(1)), 0);
         await merkle.commitRoot();
 
         expect(await merkle.currentLength()).to.equal(2);
@@ -40,7 +36,7 @@ describe("Incremental merkle hash", function () {
         allLeaves[0] = await genLeaf(0);
         const tree = await new MockMerkle(allLeaves).build();
 
-        await merkle.insertNode(tree.at("1"), 1);
+        await merkle.insertNode(toHex(tree.at("1")), 1);
         await merkle.commitRoot();
 
         expect(await merkle.currentLength()).to.equal(4);
@@ -56,13 +52,13 @@ describe("Incremental merkle hash", function () {
 
         const tree = await new MockMerkle(allLeaves).build();
 
-        await merkle.insertNode(tree.at("01"), 1);
+        await merkle.insertNode(toHex(tree.at("01")), 1);
         await merkle.commitRoot();
-        await merkle.insertNode(tree.at("10"), 1);
+        await merkle.insertNode(toHex(tree.at("10")), 1);
         await merkle.commitRoot();
-        await merkle.insertNode(tree.at("110"), 0);
+        await merkle.insertNode(toHex(tree.at("110")), 0);
         await merkle.commitRoot();
-        await merkle.insertNode(tree.at("111"), 0);
+        await merkle.insertNode(toHex(tree.at("111")), 0);
         await merkle.commitRoot();
 
         expect(await merkle.currentLength()).to.equal(8);
@@ -78,10 +74,10 @@ describe("Incremental merkle hash", function () {
 
         const tree = await new MockMerkle(allLeaves).build();
 
-        await merkle.insertNode(tree.at("01"), 1);
-        await merkle.insertNode(tree.at("10"), 1);
-        await merkle.insertNode(tree.at("110"), 0);
-        await merkle.insertNode(tree.at("111"), 0);
+        await merkle.insertNode(toHex(tree.at("01")), 1);
+        await merkle.insertNode(toHex(tree.at("10")), 1);
+        await merkle.insertNode(toHex(tree.at("110")), 0);
+        await merkle.insertNode(toHex(tree.at("111")), 0);
         await merkle.commitRoot();
 
         expect(await merkle.currentLength()).to.equal(8);
@@ -101,10 +97,10 @@ describe("Incremental merkle hash", function () {
 
         const tree = await new MockMerkle(allLeaves).build();
 
-        await merkle.insertNode(tree.at("01"), 2);
-        await merkle.insertNode(tree.at("1000"), 0);
-        await merkle.insertNode(tree.at("101"), 1);
-        await merkle.insertNode(tree.at("1100"), 0);
+        await merkle.insertNode(toHex(tree.at("01")), 2);
+        await merkle.insertNode(toHex(tree.at("1000")), 0);
+        await merkle.insertNode(toHex(tree.at("101")), 1);
+        await merkle.insertNode(toHex(tree.at("1100")), 0);
         expect(await merkle.unstagedHeight()).to.equal(1);
         await merkle.commitRoot();
 
@@ -163,7 +159,7 @@ async function buildLeafFromHeight(heights: number[]): Promise<MockMerkle> {
     return await new MockMerkle(leaves).build();
 }
 
-async function insertNodeFromHeight(merkle: Contract, heights: number[], tree: MockMerkle) {
+async function insertNodeFromHeight(merkle: MerkleTreeTest, heights: number[], tree: MockMerkle) {
     const totalHeight = tree.height();
     let nextIndex = 1;
 
@@ -182,7 +178,7 @@ async function insertNodeFromHeight(merkle: Contract, heights: number[], tree: M
 
     for (const height of heights) {
         nextIndex = Math.ceil(nextIndex / (1 << height)) * (1 << height);
-        await merkle.insertNode(tree.at(indexToPath(nextIndex, height)), height);
+        await merkle.insertNode(toHex(tree.at(indexToPath(nextIndex, height))), height);
         nextIndex += 1 << height;
     }
 }

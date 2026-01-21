@@ -7,10 +7,10 @@ function bitLength(n: number): number {
     return Math.floor(Math.log(n) / Math.log(2)) + 1;
 }
 
-function genLeafData(index: number): Buffer {
-    const input = Array(256).fill(0);
+function genLeafData(index: number): Uint8Array {
+    const input = new Uint8Array(256);
     input[0] = index;
-    return Buffer.from(input);
+    return input;
 }
 
 async function genLeaf(index: number): Promise<Buffer> {
@@ -61,7 +61,13 @@ class MockMerkle {
             for (let i = 0; i < 1 << (h - 1); i++) {
                 const left: number = 2 * (offset + i) + 1;
                 const right: number = 2 * (offset + i) + 2;
-                tree[offset + i] = Buffer.from(await keccak(Buffer.concat([tree[left], tree[right]]), 256), "hex");
+                const pair = new Uint8Array(64);
+                pair.set(tree[left], 0);
+                pair.set(tree[right], 32);
+                tree[offset + i] = Buffer.from(
+                    await keccak(pair, 256),
+                    "hex"
+                );
             }
         }
 
@@ -124,7 +130,7 @@ class MockMerkle {
         for (let i = 0; i < 16; i++) {
             const leafData = genLeafData(recallPosition + i);
             for (let j = 0; j < 256; j += 32) {
-                unsealedData.push(leafData.subarray(j, j + 32));
+                unsealedData.push(Buffer.from(leafData.subarray(j, j + 32)));
             }
         }
         return unsealedData;
