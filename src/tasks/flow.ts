@@ -1,7 +1,7 @@
 import { task, types } from "hardhat/config";
+import { UpgradeableBeacon } from "../../typechain-types";
 import { getConfig } from "../config";
 import { CONTRACTS, getTypedContract } from "../utils/utils";
-import { UpgradeableBeacon } from "../../typechain-types";
 
 task("flow:show", "show contract params").setAction(async (_, hre) => {
     const flow = await getTypedContract(hre, CONTRACTS.FixedPriceFlow);
@@ -44,7 +44,7 @@ task("flow:updatecontext", "update context to latest").setAction(async (_, hre) 
         if (after === before) {
             break;
         }
-        console.log(`updated epoch to ${after}.`);
+        console.log(`updated epoch to ${after.toString()}.`);
     }
     console.log(`done.`);
 });
@@ -57,7 +57,7 @@ task("flow:setAdmin", "Set a new admin for the flow contract")
 
         // Validate admin address
         if (!hre.ethers.isAddress(taskArgs.admin)) {
-            throw new Error(`Invalid admin address: ${taskArgs.admin}`);
+            throw new Error(`Invalid admin address: ${String(taskArgs.admin)}`);
         }
 
         let signer;
@@ -149,8 +149,9 @@ task("flow:setAdmin", "Set a new admin for the flow contract")
                 console.log(`  - DEFAULT_ADMIN_ROLE: ${hasNewDefaultAdminRole ? "✓" : "✗"}`);
                 console.log(`  - Old admin revoked: ${oldAdminRevokedDefault ? "✓" : "✗"}`);
             }
-        } catch (error: any) {
-            console.error(`❌ Failed to set admin: ${error.message}`);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`❌ Failed to set admin: ${errorMessage}`);
             throw error;
         }
     });
@@ -161,17 +162,17 @@ task("flow:transfer-beacon-ownership", "transfer beacon contract ownership")
     .setAction(async (taskArgs: { newOwner: string; execute: boolean }, hre) => {
         const beaconContract = await hre.ethers.getContract("FixedPriceFlowBeacon");
         const beacon = beaconContract as UpgradeableBeacon;
-        
+
         const currentOwner = await beacon.owner();
         console.log(`Current owner: ${currentOwner}`);
         console.log(`New owner: ${taskArgs.newOwner}`);
-        
+
         if (taskArgs.execute) {
             console.log("Transferring beacon ownership...");
             const tx = await beacon.transferOwnership(taskArgs.newOwner);
             await tx.wait();
             console.log(`Ownership transferred! Transaction hash: ${tx.hash}`);
-            
+
             const newOwner = await beacon.owner();
             console.log(`New owner confirmed: ${newOwner}`);
         } else {

@@ -1,9 +1,9 @@
 import { ZeroAddress } from "ethers";
 import { ZerogContractConfigs } from "./networks/zerog_contract_config";
+import { ZerogMainnetContractConfigsStandard } from "./networks/zerog_mainnet_contract_config_standard";
+import { ZerogMainnetContractConfigsTurbo } from "./networks/zerog_mainnet_contract_config_turbo";
 import { ZerogTestnetContractConfigsStandard } from "./networks/zerog_testnet_contract_config_standard";
 import { ZerogTestnetContractConfigsTurbo } from "./networks/zerog_testnet_contract_config_turbo";
-import { ZerogMainnetContractConfigsTurbo } from "./networks/zerog_mainnet_contract_config_turbo";
-import { ZerogMainnetContractConfigsStandard } from "./networks/zerog_mainnet_contract_config_standard";
 
 export interface MineConfigs {
     settings: number;

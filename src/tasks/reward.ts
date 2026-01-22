@@ -1,6 +1,6 @@
 import { task, types } from "hardhat/config";
-import { CONTRACTS, getTypedContract } from "../utils/utils";
 import { UpgradeableBeacon } from "../../typechain-types";
+import { CONTRACTS, getTypedContract } from "../utils/utils";
 
 task("reward:donate", "set extra total base reward")
     .addParam("amnt", "amount of donation", undefined, types.string, false)
@@ -18,21 +18,20 @@ task("reward:setBaseReward", "set extra base reward")
         console.log(`set base reward to ${taskArgs.amnt}`);
     });
 
-task("reward:beacon-owner", "check beacon contract owner")
-    .setAction(async (_taskArgs, hre) => {
-        const beaconContract = await hre.ethers.getContract("ChunkLinearRewardBeacon");
-        const beacon = beaconContract as UpgradeableBeacon;
-        const beaconAddress = await beacon.getAddress();
-        
-        const owner = await beacon.owner();
-        console.log(`Beacon contract: ${beaconAddress}`);
-        console.log(`Current owner: ${owner}`);
-        
-        const [signer] = await hre.ethers.getSigners();
-        const signerAddress = await signer.getAddress();
-        console.log(`Your address: ${signerAddress}`);
-        console.log(`You are the owner: ${owner.toLowerCase() === signerAddress.toLowerCase()}`);
-    });
+task("reward:beacon-owner", "check beacon contract owner").setAction(async (_taskArgs, hre) => {
+    const beaconContract = await hre.ethers.getContract("ChunkLinearRewardBeacon");
+    const beacon = beaconContract as UpgradeableBeacon;
+    const beaconAddress = await beacon.getAddress();
+
+    const owner = await beacon.owner();
+    console.log(`Beacon contract: ${beaconAddress}`);
+    console.log(`Current owner: ${owner}`);
+
+    const [signer] = await hre.ethers.getSigners();
+    const signerAddress = await signer.getAddress();
+    console.log(`Your address: ${signerAddress}`);
+    console.log(`You are the owner: ${owner.toLowerCase() === signerAddress.toLowerCase()}`);
+});
 
 task("reward:transfer-beacon-ownership", "transfer beacon contract ownership")
     .addParam("newOwner", "new owner address", undefined, types.string, false)
@@ -40,17 +39,17 @@ task("reward:transfer-beacon-ownership", "transfer beacon contract ownership")
     .setAction(async (taskArgs: { newOwner: string; execute: boolean }, hre) => {
         const beaconContract = await hre.ethers.getContract("ChunkLinearRewardBeacon");
         const beacon = beaconContract as UpgradeableBeacon;
-        
+
         const currentOwner = await beacon.owner();
         console.log(`Current owner: ${currentOwner}`);
         console.log(`New owner: ${taskArgs.newOwner}`);
-        
+
         if (taskArgs.execute) {
             console.log("Transferring beacon ownership...");
             const tx = await beacon.transferOwnership(taskArgs.newOwner);
             await tx.wait();
             console.log(`Ownership transferred! Transaction hash: ${tx.hash}`);
-            
+
             const newOwner = await beacon.owner();
             console.log(`New owner confirmed: ${newOwner}`);
         } else {
@@ -88,17 +87,17 @@ task("reward:upgrade", "Deploy new ChunkLinearReward implementation and upgrade 
             // Check if signer is the owner of the beacon
             const owner = await beacon.owner();
             const signerAddress = await signer.getAddress();
-            
+
             if (owner.toLowerCase() !== signerAddress.toLowerCase()) {
                 throw new Error(`❌ Signer ${signerAddress} is not the owner of the beacon. Owner is: ${owner}`);
             }
 
             console.log("🏗️  Deploying new implementation...");
-            
+
             // Deploy new implementation with hardhat-deploy
             const { deployments } = hre;
             const releaseSeconds = "32140800"; // Keep the same releaseSeconds
-            
+
             const result = await deployments.deploy(`ChunkLinearRewardImpl`, {
                 from: await signer.getAddress(),
                 contract: CONTRACTS.ChunkLinearReward.contractName(),
@@ -137,10 +136,8 @@ task("reward:upgrade", "Deploy new ChunkLinearReward implementation and upgrade 
             } else {
                 console.log("❌ Upgrade verification failed!");
             }
-
         } catch (error) {
             console.error("❌ Upgrade failed:", error);
             throw error;
         }
     });
-

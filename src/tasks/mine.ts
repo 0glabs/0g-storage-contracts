@@ -1,6 +1,6 @@
 import { task, types } from "hardhat/config";
-import { CONTRACTS, getTypedContract } from "../utils/utils";
 import { UpgradeableBeacon } from "../../typechain-types";
+import { CONTRACTS, getTypedContract } from "../utils/utils";
 
 task("mine:show", "show contract params").setAction(async (_, hre) => {
     const mine = await getTypedContract(hre, CONTRACTS.PoraMine);
@@ -21,7 +21,7 @@ task("mine:setMinDifficulty", "set min difficulty")
     .setAction(async (taskArgs: { min: bigint }, hre) => {
         const mine = await getTypedContract(hre, CONTRACTS.PoraMine);
         await (await mine.setMinDifficulty(taskArgs.min)).wait();
-        console.log(`set min difficulty to ${taskArgs.min}`);
+        console.log(`set min difficulty to ${taskArgs.min.toString()}`);
     });
 
 task("mine:setNumSubtasks", "set num subtasks")
@@ -40,7 +40,7 @@ task("mine:setAdmin", "Set a new admin for the mine contract")
 
         // Validate admin address
         if (!hre.ethers.isAddress(taskArgs.admin)) {
-            throw new Error(`Invalid admin address: ${taskArgs.admin}`);
+            throw new Error(`Invalid admin address: ${String(taskArgs.admin)}`);
         }
 
         let signer;
@@ -77,7 +77,7 @@ task("mine:setAdmin", "Set a new admin for the mine contract")
                 throw new Error("Grant transaction receipt is null");
             }
             console.log(`Grant transaction confirmed in block: ${paramReceipt.blockNumber}`);
-            
+
             // Revoke PARAMS_ADMIN_ROLE from old admin
             console.log(`Revoking PARAMS_ADMIN_ROLE from ${signerAddress}...`);
             const revokeParamTx = await mine.revokeRole(PARAMS_ADMIN_ROLE, signerAddress);
@@ -88,7 +88,7 @@ task("mine:setAdmin", "Set a new admin for the mine contract")
                 throw new Error("Revoke transaction receipt is null");
             }
             console.log(`Revoke transaction confirmed in block: ${revokeParamReceipt.blockNumber}`);
-            
+
             // Check if signer has DEFAULT_ADMIN_ROLE
             const DEFAULT_ADMIN_ROLE = await mine.DEFAULT_ADMIN_ROLE();
             const hasAdminRole = await mine.hasRole(DEFAULT_ADMIN_ROLE, signerAddress);
@@ -126,14 +126,17 @@ task("mine:setAdmin", "Set a new admin for the mine contract")
             const oldAdminRevokedParams = !(await mine.hasRole(PARAMS_ADMIN_ROLE, signerAddress));
 
             if (hasNewDefaultAdminRole && oldAdminRevokedDefault && hasNewParamsAdminRole && oldAdminRevokedParams) {
-                console.log(`✅ Successfully transferred PARAMS_ADMIN_ROLE and DEFAULT_ADMIN_ROLE to ${taskArgs.admin}`);
+                console.log(
+                    `✅ Successfully transferred PARAMS_ADMIN_ROLE and DEFAULT_ADMIN_ROLE to ${taskArgs.admin}`
+                );
             } else {
                 console.log(`⚠️  Admin transfer completed but verification shows:`);
                 console.log(`  - DEFAULT_ADMIN_ROLE: ${hasNewDefaultAdminRole ? "✓" : "✗"}`);
                 console.log(`  - Old admin revoked: ${oldAdminRevokedDefault ? "✓" : "✗"}`);
             }
-        } catch (error: any) {
-            console.error(`❌ Failed to set admin: ${error.message}`);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`❌ Failed to set admin: ${errorMessage}`);
             throw error;
         }
     });
@@ -144,17 +147,17 @@ task("mine:transfer-beacon-ownership", "transfer beacon contract ownership")
     .setAction(async (taskArgs: { newOwner: string; execute: boolean }, hre) => {
         const beaconContract = await hre.ethers.getContract("PoraMineBeacon");
         const beacon = beaconContract as UpgradeableBeacon;
-        
+
         const currentOwner = await beacon.owner();
         console.log(`Current owner: ${currentOwner}`);
         console.log(`New owner: ${taskArgs.newOwner}`);
-        
+
         if (taskArgs.execute) {
             console.log("Transferring beacon ownership...");
             const tx = await beacon.transferOwnership(taskArgs.newOwner);
             await tx.wait();
             console.log(`Ownership transferred! Transaction hash: ${tx.hash}`);
-            
+
             const newOwner = await beacon.owner();
             console.log(`New owner confirmed: ${newOwner}`);
         } else {

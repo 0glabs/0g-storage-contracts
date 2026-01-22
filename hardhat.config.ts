@@ -87,7 +87,7 @@ const config: HardhatUserConfig = {
         zgStandard: {
             ...userConfig,
             url: "https://evmrpc.0g.ai",
-        }
+        },
     },
     namedAccounts: {
         deployer: 0,
@@ -98,7 +98,7 @@ const config: HardhatUserConfig = {
     etherscan: {
         apiKey: {
             mainnet: ETHERSCAN_API_KEY || "",
-            zgTurbo: "no-api-key-needed"
+            zgTurbo: "no-api-key-needed",
         },
         customChains: [
             {
@@ -106,10 +106,10 @@ const config: HardhatUserConfig = {
                 chainId: 16661,
                 urls: {
                     apiURL: "https://chainscan.0g.ai/open/api",
-                    browserURL: "https://chainscan.0g.ai"
-                }
-            }
-        ]
+                    browserURL: "https://chainscan.0g.ai",
+                },
+            },
+        ],
     },
     gasReporter: {
         currency: "Gwei",
