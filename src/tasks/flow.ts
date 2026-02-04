@@ -5,15 +5,50 @@ import { CONTRACTS, getTypedContract } from "../utils/utils";
 
 task("flow:show", "show contract params").setAction(async (_, hre) => {
     const flow = await getTypedContract(hre, CONTRACTS.FixedPriceFlow);
-    // const signer = await hre.ethers.getSigner((await hre.getNamedAccounts()).deployer);
-    // testnet turbo first impl
-    // const flow = CONTRACTS.FixedPriceFlow.factory.connect("0x61450afb8F99AB3D614a45cb563C61f59d9DD026", signer);
-    // testnet standard first impl
-    // const flow = CONTRACTS.FixedPriceFlow.factory.connect("0x1F7A30Cd62c4132B6C521B8F79e7aE0046A4F307", signer);
-    console.log(await flow.getContext());
-    console.log(await flow.blocksPerEpoch());
-    console.log(await flow.firstBlock());
-    console.log(await flow.rootHistory());
+    const [
+        context,
+        blocksPerEpoch,
+        firstBlock,
+        rootHistory,
+        epoch,
+        epochStartPosition,
+        submissionIndex,
+        tree,
+        market,
+        paused,
+        deployDelay,
+    ] = await Promise.all([
+        flow.getContext(),
+        flow.blocksPerEpoch(),
+        flow.firstBlock(),
+        flow.rootHistory(),
+        flow.epoch(),
+        flow.epochStartPosition(),
+        flow.submissionIndex(),
+        flow.tree(),
+        flow.market(),
+        flow.paused(),
+        flow.deployDelay(),
+    ]);
+
+    console.log(`epoch: ${epoch.toString()}`);
+    console.log(`epochStartPosition: ${epochStartPosition.toString()}`);
+    console.log(`submissionIndex: ${submissionIndex.toString()}`);
+    console.log(`tree.currentLength: ${tree.currentLength.toString()}`);
+    console.log(`tree.unstagedHeight: ${tree.unstagedHeight.toString()}`);
+    console.log(`blocksPerEpoch: ${blocksPerEpoch.toString()}`);
+    console.log(`firstBlock: ${firstBlock.toString()}`);
+    console.log(`deployDelay: ${deployDelay.toString()}`);
+    console.log(`paused: ${paused}`);
+    console.log(`market: ${market}`);
+    console.log(`rootHistory: ${rootHistory}`);
+    const contextJson = JSON.stringify(context, (_key: string, value: unknown) => {
+        if (typeof value === "bigint") {
+            return value.toString();
+        }
+        return value;
+    });
+    console.log(`context: ${contextJson}`);
 });
 
 task("flow:setparams", "set contract params").setAction(async (_, hre) => {

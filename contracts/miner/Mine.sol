@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "../utils/DigestHistory.sol";
 import "../utils/BitMask.sol";
+import "../utils/BlockHash.sol";
 import "../utils/ZgsSpec.sol";
 import "../utils/Blake2b.sol";
 import "../interfaces/IMarket.sol";
@@ -311,12 +312,12 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
         require(block.number > subtaskMineStart, "Earlier than expected subtask start block.");
         require(block.number <= subtaskMineEnd, "Mine deadline exceed");
 
-        return keccak256(abi.encode(context.digest, blockhash(subtaskMineStart)));
+        return keccak256(abi.encode(context.digest, Blockhash.blockHash(subtaskMineStart)));
     }
 
     function requestMinerId(address beneficiary, uint64 seed) public {
         PoraMineStorage storage $ = _getPoraMineStorage();
-        bytes32 minerId = keccak256(abi.encodePacked(blockhash(block.number - 1), msg.sender, seed));
+        bytes32 minerId = keccak256(abi.encodePacked(Blockhash.blockHash(block.number - 1), msg.sender, seed));
         require($.beneficiaries[minerId] == address(0), "MinerId has registered");
         $.beneficiaries[minerId] = beneficiary;
         emit NewMinerId(minerId, beneficiary);
@@ -475,7 +476,7 @@ contract PoraMine is AccessControlEnumerableUpgradeable {
             return answer;
         }
 
-        answer.subtaskDigest = keccak256(abi.encode(answer.context.digest, blockhash(subtaskMineStart)));
+        answer.subtaskDigest = keccak256(abi.encode(answer.context.digest, Blockhash.blockHash(subtaskMineStart)));
 
         if (answer.context.epoch > $.lastMinedEpoch) {
             _updateMineEpochWhenNeeded(answer.context);

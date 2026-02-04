@@ -4,8 +4,58 @@ import { CONTRACTS, getTypedContract } from "../utils/utils";
 
 task("mine:show", "show contract params").setAction(async (_, hre) => {
     const mine = await getTypedContract(hre, CONTRACTS.PoraMine);
-    console.log(await mine.targetSubmissions());
-    console.log(await mine.canSubmit.staticCall());
+    const [
+        targetSubmissions,
+        targetSubmissionsNextEpoch,
+        targetMineBlocks,
+        poraTarget,
+        minDifficulty,
+        nSubtasks,
+        nSubtasksNextEpoch,
+        subtaskInterval,
+        subtaskIntervalNextEpoch,
+        currentSubmissions,
+        lastMinedEpoch,
+        maxShards,
+        difficultyAdjustRatio,
+        canSubmit,
+        flow,
+        reward,
+    ] = await Promise.all([
+        mine.targetSubmissions(),
+        mine.targetSubmissionsNextEpoch(),
+        mine.targetMineBlocks(),
+        mine.poraTarget(),
+        mine.minDifficulty(),
+        mine.nSubtasks(),
+        mine.nSubtasksNextEpoch(),
+        mine.subtaskInterval(),
+        mine.subtaskIntervalNextEpoch(),
+        mine.currentSubmissions(),
+        mine.lastMinedEpoch(),
+        mine.maxShards(),
+        mine.difficultyAdjustRatio(),
+        mine.canSubmit.staticCall(),
+        mine.flow(),
+        mine.reward(),
+    ]);
+
+    console.log(`targetSubmissions: ${targetSubmissions.toString()}`);
+    console.log(`targetSubmissionsNextEpoch: ${targetSubmissionsNextEpoch.toString()}`);
+    console.log(`targetMineBlocks: ${targetMineBlocks.toString()}`);
+    console.log(`poraTarget: ${poraTarget.toString()}`);
+    console.log(`minDifficulty: ${minDifficulty.toString()}`);
+    console.log(`nSubtasks: ${nSubtasks.toString()}`);
+    console.log(`nSubtasksNextEpoch: ${nSubtasksNextEpoch.toString()}`);
+    console.log(`subtaskInterval: ${subtaskInterval.toString()}`);
+    console.log(`subtaskIntervalNextEpoch: ${subtaskIntervalNextEpoch.toString()}`);
+    console.log(`currentSubmissions: ${currentSubmissions.toString()}`);
+    console.log(`lastMinedEpoch: ${lastMinedEpoch.toString()}`);
+    console.log(`maxShards: ${maxShards.toString()}`);
+    console.log(`difficultyAdjustRatio: ${difficultyAdjustRatio.toString()}`);
+    console.log(`canSubmit: ${canSubmit}`);
+    console.log(`flow: ${flow}`);
+    console.log(`reward: ${reward}`);
 });
 
 task("mine:setTargetSubmissions", "set target submissions")
