@@ -14,12 +14,7 @@ import dotenv from "dotenv";
 dotenv.config();
 const { NODE_URL, DEPLOYER_KEY, ETHERSCAN_API_KEY } = process.env;
 
-// 0x12cAef034a8D1548a81fd7d677640d1070a1Ec17
-const DEFAULT_DEPLOYER = "YOUR_PRIVATE_KEY";
-
-const userConfig: HttpNetworkUserConfig = {
-    accounts: [DEPLOYER_KEY ? DEPLOYER_KEY : DEFAULT_DEPLOYER],
-};
+const userConfig: HttpNetworkUserConfig = DEPLOYER_KEY ? { accounts: [DEPLOYER_KEY] } : {};
 
 import "./src/tasks/access";
 import "./src/tasks/codesize";
@@ -99,6 +94,7 @@ const config: HardhatUserConfig = {
         apiKey: {
             mainnet: ETHERSCAN_API_KEY || "",
             zgTurbo: "no-api-key-needed",
+            zgTestnetTurbo: "no-api-key-needed",
         },
         customChains: [
             {
@@ -109,6 +105,14 @@ const config: HardhatUserConfig = {
                     browserURL: "https://chainscan.0g.ai",
                 },
             },
+            {
+                network: "zgTestnetTurbo",
+                chainId: 16602,
+                urls: {
+                    apiURL: "https://chainscan-galileo.0g.ai/open/api",
+                    browserURL: "https://chainscan-galileo.0g.ai"
+                }
+            }
         ],
     },
     gasReporter: {
