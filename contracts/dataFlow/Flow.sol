@@ -63,6 +63,9 @@ contract Flow is IFlow, PauseControl {
 
     constructor(uint deployDelay_) {
         deployDelay = deployDelay_;
+        // Lock the implementation contract so it can never be initialized directly.
+        // Proxies have their own storage and can still call initialize() once each.
+        _disableInitializers();
     }
 
     function _initialize(address market_) internal virtual {
