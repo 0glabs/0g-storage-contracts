@@ -190,25 +190,50 @@ contract Flow is IFlow, PauseControl {
         digests = new bytes32[](len);
         startIndexes = new uint[](len);
         lengths = new uint[](len);
+        uint remainingValue = msg.value;
         for (uint i = 0; i < len; ++i) {
-            (uint index, bytes32 digest, uint startIndex, uint length) = submit(submissions[i]);
-            indexes[i] = index;
-            digests[i] = digest;
-            startIndexes[i] = startIndex;
-            lengths[i] = length;
+            (indexes[i], digests[i], startIndexes[i], lengths[i], remainingValue) = _submit(
+                submissions[i],
+                remainingValue
+            );
         }
+        _refund(remainingValue);
     }
 
-    function _beforeSubmit(uint sectors) internal virtual {}
+    // Charges the fee for this submission out of `value` (the portion of msg.value
+    // not yet consumed by earlier submissions in the transaction) and returns what
+    // is left. The fee must be covered by `value` alone: the contract balance may
+    // hold residue from before fee accounting was fixed, which must not pay for
+    // new submissions.
+    function _beforeSubmit(uint sectors, uint value) internal virtual returns (uint) {
+        sectors;
+        return value;
+    }
+
+    function _refund(uint value) internal {
+        if (value > 0) {
+            (bool success, ) = msg.sender.call{value: value}("");
+            require(success, "Refund failed");
+        }
+    }
 
     function submit(
         Submission memory submission
     ) public payable whenNotPaused launched returns (uint index, bytes32 digest, uint256 startIndex, uint256 length) {
+        uint remainingValue;
+        (index, digest, startIndex, length, remainingValue) = _submit(submission, msg.value);
+        _refund(remainingValue);
+    }
+
+    function _submit(
+        Submission memory submission,
+        uint value
+    ) internal returns (uint index, bytes32 digest, uint256 startIndex, uint256 length, uint remainingValue) {
         FlowStorage storage $ = _getFlowStorage();
         require(submission.valid(), "Invalid submission");
 
         length = submission.size();
-        _beforeSubmit(length);
+        remainingValue = _beforeSubmit(length, value);
 
         makeContext();
 
